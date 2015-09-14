@@ -1,17 +1,17 @@
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances #-}
 
-module NLP.Freq ( cosine
-                , dot
-                , len
-                , mkFreqList
-                , prettyprint
-                , Frequency
-                , FreqList(..) ) where
+module Data.FunLP.Freq ( cosine
+                       , dot
+                       , len
+                       , mkFreqList
+                       , prettyprint
+                       , Frequency
+                       , FreqList(..) ) where
 
 import qualified Data.Map as M
 import qualified Data.List as L
 
-import NLP.General
+import Data.FunLP.General
 
 type Frequency = Int
 

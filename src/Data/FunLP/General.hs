@@ -1,18 +1,18 @@
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, UndecidableInstances, FunctionalDependencies, TypeFamilies, OverlappingInstances, ScopedTypeVariables #-}
 
-module NLP.General ( NGToken(..)
-                   , fromTok
-                   , toTok
-                   , wordToTok
-                   , F
-                   , PState(..)
-                   , PClosed(..)
-                   , POpen(..)
-                   , Feature(..)
-                   , LinkedTo(..)
-                   , Featuring(..) 
-                   , TriGram(..)
-                   , UBlock(..) ) where
+module Data.FunLP.General ( NGToken(..)
+                          , fromTok
+                          , toTok
+                          , wordToTok
+                          , F
+                          , PState(..)
+                          , PClosed(..)
+                          , POpen(..)
+                          , Feature(..)
+                          , LinkedTo(..)
+                          , Featuring(..) 
+                          , TriGram(..)
+                          , UBlock(..) ) where
 
 import qualified Data.Text as T
 import qualified Data.Set as S

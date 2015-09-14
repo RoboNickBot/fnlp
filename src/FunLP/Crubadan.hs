@@ -1,12 +1,10 @@
-module NLP.Crubadan (readCrData) where
-
+module FunLP.Crubadan (readCrData) where
 
 import qualified Data.Map as M
 import qualified Data.Text as T
 import Text.ParserCombinators.Parsec
 
-import NLP.General
-import NLP.Freq
+import Data.FunLP
 
 readCrData :: String -> IO (FreqList TriGram)
 readCrData fpath = 
