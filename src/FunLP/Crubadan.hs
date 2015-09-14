@@ -26,5 +26,6 @@ line = do a <- noneOf "\n "
           char ' '
           freq <- many (noneOf "\n")
           char '\n'
-          return (TriGram (toTok a) (toTok b) (toTok c), read freq)
+          return (TriGram (toTok a) (toTok b) (toTok c)
+                 ,Frequency $ read freq)
 

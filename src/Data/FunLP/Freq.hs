@@ -1,58 +1,67 @@
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances #-}
 
-module Data.FunLP.Freq ( cosine
-                       , dot
-                       , len
-                       , mkFreqList
-                       , prettyprint
-                       , Frequency
-                       , FreqList(..) ) where
+module Data.FunLP.Freq 
+  ( cosine
+  , dot
+  , len
+  , mkFreqList
+  , prettyprint
+  , Frequency(..)
+  , FreqList(..) 
+  
+  ) where
 
 import qualified Data.Map as M
 import qualified Data.List as L
 
-import Data.FunLP.General
+import Data.FunLP.Core
+import Data.FunLP.Common
 
-type Frequency = Int
+newtype Frequency = Frequency { frequency :: Int } 
+  deriving (Show, Read, Eq, Ord)
 
-data F f => FreqList f = FreqList { freqMap :: M.Map f Frequency}
-                     deriving (Show, Read, Eq, Ord)
+freqBump (Frequency f) = Frequency (f + 1)
 
-instance F f => Feature (FreqList f)
+freqInit = Frequency 1
 
-mkFreqList :: (Show f, Read f, Eq f, Ord f) => [f] -> FreqList f
+data FreqList f = FreqList { freqMap :: M.Map f Frequency}
+              deriving (Show, Read, Eq, Ord)
+
+mkFreqList :: Ord f => [f] -> FreqList f
 mkFreqList fs = 
   FreqList (foldr (\t m -> if M.member t m
-                              then M.adjust (+1) t m
-                              else M.insert t 1 m)
+                              then M.adjust freqBump t m
+                              else M.insert t freqInit m)
                   M.empty fs)
 
-instance PState [TriGram] (FreqList TriGram) PClosed
-instance LinkedTo [TriGram] (FreqList TriGram) where
-  linkstep = mkFreqList
-    
-instance PState [UBlock] (FreqList UBlock) PClosed
-instance LinkedTo [UBlock] (FreqList UBlock) where
-  linkstep = mkFreqList
+instance PState TriGramList (FreqList TriGram) PClosed
+instance LinkedTo TriGramList (FreqList TriGram) where
+  linkstep = mkFreqList . triGramList
+
+instance PState UBlockList (FreqList UBlock) PClosed
+instance LinkedTo UBlockList (FreqList UBlock) where
+  linkstep = mkFreqList . uBlockList
 
 showln (sg,f) = sg ++ " " ++ show f
 
-cosine :: F f => FreqList f -> FreqList f -> Double
+cosine :: Ord f => FreqList f -> FreqList f -> Double
 cosine a b = dot a b / (len a * len b)
 
-dot :: F f => FreqList f -> FreqList f -> Double
+dot :: Ord f => FreqList f -> FreqList f -> Double
 dot a b = (fromIntegral 
-           . foldr (\(k,v) p -> v * (l k) + p) 0 
-           . M.toList) (freqMap a)
+           . foldr (\(k,v) p -> v * (frequency $ l k) + p) 0 
+           . fmap (onSnd frequency) . M.toList) (freqMap a)
   where l k = case M.lookup k (freqMap b) of
                 Just v -> v
-                _ -> 0
+                _ -> (Frequency 0)
 
-len :: F f => FreqList f -> Double
+onSnd f (a,x) = (a,f x)
+
+len :: FreqList f -> Double
 len = sqrt . fromIntegral . foldr (\a s -> a^2 + s) 0 
-      . fmap snd . M.toList . freqMap
+      . fmap frequency . fmap snd . M.toList . freqMap
 
-prettyprint :: F a => FreqList a -> [String]
+prettyprint :: (Show a) => FreqList a -> [String]
 prettyprint (FreqList m) = 
   let vals = M.toList m 
   in fmap show (L.sortBy 
