@@ -1,6 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances #-}
 
-module Data.FunLP.Common where
+module Data.FNLP.Common where
 
 import qualified Data.Text as T
 import qualified Data.Set as S
@@ -9,7 +9,7 @@ import Data.CharSet.Unicode.Block (Block(..), blocks)
 import Data.CharSet (member)
 import Data.Char (isSpace, isAlpha, toLower)
 
-import Data.FunLP.Core
+import Data.FNLP.Core
 
 
 ----------------------------------------------------------------------

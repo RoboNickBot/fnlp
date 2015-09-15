@@ -1,6 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, UndecidableInstances, FunctionalDependencies, TypeFamilies, ScopedTypeVariables #-}
 
-module Data.FunLP.Core where
+module Data.FNLP.Core where
 
 
 data POpen

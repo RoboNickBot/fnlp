@@ -1,6 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances #-}
 
-module Data.FunLP.Freq 
+module Data.FNLP.Freq 
   ( cosine
   , dot
   , len
@@ -14,8 +14,8 @@ module Data.FunLP.Freq
 import qualified Data.Map as M
 import qualified Data.List as L
 
-import Data.FunLP.Core
-import Data.FunLP.Common
+import Data.FNLP.Core
+import Data.FNLP.Common
 
 newtype Frequency = Frequency { frequency :: Int } 
   deriving (Show, Read, Eq, Ord)

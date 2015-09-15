@@ -1,4 +1,4 @@
-name:                funlp
+name:                fnlp
 version:             0.0.0.0
 synopsis:            purely [Fun]ctional natural [L]anguage [P]rocessing
 license:             GPL-3
@@ -10,8 +10,8 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Data.FunLP
-                     , FunLP.Crubadan
+  exposed-modules:     Data.FNLP
+                     , Text.Parsec.FNLP.Crubadan
 
   build-depends:       base >=4.8 && <4.9
                      , containers >=0.5 && <0.6
