@@ -7,8 +7,9 @@ module Data.FNLP.Freq
   , mkFreqList
   , prettyprint
   , Frequency(..)
-  , FreqList(..) 
-  
+  , FreqList(..)
+  , freqList
+
   ) where
 
 import qualified Data.Map as M
@@ -26,6 +27,11 @@ freqInit = Frequency 1
 
 data FreqList f = FreqList { freqMap :: M.Map f Frequency}
               deriving (Show, Read, Eq, Ord)
+
+freqList :: FreqList f -> [(f, Frequency)]
+freqList = L.sortBy (\(_,a) (_,b) -> compare b a) 
+           . M.toList 
+           . freqMap
 
 mkFreqList :: Ord f => [f] -> FreqList f
 mkFreqList fs = 

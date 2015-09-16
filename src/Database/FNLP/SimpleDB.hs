@@ -14,9 +14,14 @@ module Database.FNLP.SimpleDB
   , insert
   , sqlCat
   , (/:)
-  
+  , sqlsBare
+  , sqlsTup2
+  , sqlsTup3
+  , sqlsTup4
+
   , SelectionSchema (..)
   , Selector
+  , andClause
   , mkSelector
   , select
   
@@ -35,6 +40,9 @@ import Data.Convertible (Convertible)
 
 commaSep :: [String] -> String
 commaSep = concat . L.intersperse ", "
+
+andSep = concat . L.intersperse " AND "
+
 
 
 ----------------------------------------------------------------------
@@ -101,6 +109,17 @@ v /: sqls = sqlCat v sqls
 
 infixr 5 /:
 
+sqlsBare :: (Convertible SqlValue v) => [SqlValue] -> v
+sqlsBare (a:[]) = fromSql a
+
+sqlsTup2 :: (Convertible SqlValue v, Convertible SqlValue u) 
+         => [SqlValue] -> (v,u)
+sqlsTup2 (a:b:[]) = (fromSql a, fromSql b)
+
+sqlsTup3 (a:b:c:[]) = (fromSql a, fromSql b, fromSql c)
+
+sqlsTup4 (a:b:c:d:[]) = (fromSql a, fromSql b, fromSql c, fromSql d)
+
 ----------------------------------------------------------------------
 -- Select
 ----------------------------------------------------------------------
@@ -123,6 +142,9 @@ selectionString t s = let n = (tableName . tableSchema) t
                       in "SELECT " ++ commaSep fs 
                          ++ " FROM " ++ n
                          ++ " WHERE " ++ c
+
+andClause :: [String] -> String
+andClause = andSep . map (++ " = ?")
 
 mkSelector :: Table r -> SelectionSchema a g -> IO (Selector r a g)
 mkSelector t s = prepare (connection t) (selectionString t s) 

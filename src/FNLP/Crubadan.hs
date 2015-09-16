@@ -1,4 +1,4 @@
-module Text.Parsec.FNLP.Crubadan (readCrData) where
+module FNLP.Crubadan (readCrData) where
 
 import qualified Data.Map as M
 import qualified Data.Text as T

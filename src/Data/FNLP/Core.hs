@@ -1,3 +1,4 @@
+{-# LANGUAGE OverlappingInstances #-}
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, UndecidableInstances, FunctionalDependencies, TypeFamilies, ScopedTypeVariables #-}
 
 module Data.FNLP.Core where
