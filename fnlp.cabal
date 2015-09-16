@@ -1,6 +1,6 @@
 name:                fnlp
 version:             0.0.0.0
-synopsis:            purely functional natural language programming
+synopsis:            purely functional natural language processing
 license:             GPL-3
 license-file:        LICENSE
 author:              RoboNickBot
@@ -20,6 +20,7 @@ library
                      , parsec >=3.1 && <3.2
                      , charset >=0.3 && <0.4
 
+                     , convertible >=1.1 && < 1.2
                      , pipes >=4.1 && <4.2
                      , directory >=1.2 && <1.3
                      , HDBC >=2.4 && <2.5

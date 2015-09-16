@@ -1,54 +1,93 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Database.FNLP where
 
-import Database.HDBC
-import Database.HDBC.Sqlite3
-
-import System.IO (hPutStrLn, stderr)
+import qualified Data.Map as M
 
 import Data.FNLP
+import Database.FNLP.SimpleDB
 
+type Language = String
 
-----------------------------------------------------------------------
--- Database
-----------------------------------------------------------------------
+type Dataset = String
 
-connectDB :: String -> IO Connection
-connectDB = connectSqlite3
+type Frequency' = Int
 
-disconnectDB :: Connection -> IO ()
-disconnectDB = disconnect
+type Cardinality = Int
+
+type Length = Int
 
 
 ----------------------------------------------------------------------
 -- Tables
 ----------------------------------------------------------------------
 
-data TableSchema r = TableSchema { tableName :: String
-                                 , rowSchema :: String
-                                 , toRow :: r -> String }
+data TriGramRow = TriGramRow Dataset
+                             Language 
+                             TriGram 
+                             Frequency'
+                             Cardinality
 
-data Table r = Table { tableSchema :: TableSchema r
-                     , connection :: Connection }
+trigrams :: TableSchema TriGramRow
+trigrams = TableSchema "trigrams" rows mkRow
+  where rows = ["dataset     TEXT         NOT NULL"
+               ,"language    TEXT         NOT NULL"
+               ,"trigram     CHARACTER(3) NOT NULL"
+               ,"frequency   INT          NOT NULL"
+               ,"cardinality INT          NOT NULL"]
+        mkRow (TriGramRow d l t f c) = 
+          d /: l /: show t /: f /: c /: []
 
-getTable :: Connection -> TableSchema r -> IO (Table r)
-getTable c sc = run c (creatorSt sc) [] 
-                >> commit c 
-                >> return (Table sc c)
+data LengthRow = LengthRow Dataset Language Length 
+                 deriving Show
 
-creatorSt :: TableSchema r -> String
-creatorSt sc = "CREATE TABLE IF NOT EXISTS " 
-               ++ (tableName sc) 
-               ++ " (" ++ (rowSchema sc) ++ ")"
+lengths :: TableSchema LengthRow
+lengths = TableSchema "lengths" rows mkRow
+  where rows = ["dataset  TEXT NOT NULL"
+               ,"language TEXT NOT NULL"
+               ,"length   INT  NOT NULL"]
+        mkRow (LengthRow d lng lth) = 
+          d /: lng /: lth /: []
 
-dropTable :: Table r -> IO ()
-dropTable t = let s = "DROP TABLE IF EXISTS " 
-                      ++ ((tableName . tableSchema) t)
-              in run (connection t) s [] >> return ()
 
-select :: Table r -> [String] -> [(String, String)] -> IO [r]
-select = undefined
+----------------------------------------------------------------------
+-- Selectors
+----------------------------------------------------------------------
 
-newtype Cardinality = Cardinality Int
-  deriving (Show, Read, Eq, Ord, Num)
+getLengths :: SelectionSchema Dataset (M.Map Language Length)
+getLengths = SelectionSchema (/: []) 
+                             packLengths
+                             ["language","length"]
+                             "dataset = ?"
+
+packLengths :: [[SqlValue]] -> M.Map Language Length
+packLengths = M.fromList . map tup
+  where tup (lng:lth:[]) = (fromSql lng, fromSql lth)
+
+
+test :: IO ()
+test = do conn <- connect "test.sqlite3"
+          table <- getTable conn lengths
+          sel <- mkSelector table getLengths
+          print testData
+          ret1 <- select sel "main"          
+
+          insert table testData
+          ret2 <- select sel "main"
+          dropTable table
+          table2 <- getTable conn lengths
+          sel2 <- mkSelector table getLengths
+          ret3 <- select sel "alt"
+          
+          disconnect conn
+          putStrLn $ "ret1: " ++ show ret1
+          putStrLn $ "ret2: " ++ show ret2
+          putStrLn $ "ret3: " ++ show ret3
+
+testData :: [LengthRow]
+testData = [lr "main" "eng" 56
+           ,lr "main" "rus" 66
+           ,lr "alt"  "rus" 88
+           ,lr "main" "jap" 5783]
+  where lr = LengthRow
