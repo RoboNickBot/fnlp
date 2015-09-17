@@ -133,6 +133,17 @@ getAllTrigs = SelectionSchema (const [])
 -- Operations
 ----------------------------------------------------------------------
 
+langPipe :: Selector TriGramRow 
+                     (Dataset, Language, Cardinality) 
+                     (FreqList TriGram) 
+         -> [Language] 
+         -> Producer (Language, FreqList TriGram) IO ()
+langPipe s ls = (each ls) >-> (Pipes.mapM dbg) >-> (Pipes.mapM get)
+  where get l = (,) l <$> select s ("main",l,50)
+        dbg l = hPutStrLn stderr ("serving lang " ++ l ++ " ...") 
+                >> hFlush stderr
+                >> return l
+
 getRealDirectoryContents = 
   fmap (filter (\a -> (a /= ".") && (a /= ".."))) 
   <$> getDirectoryContents
@@ -140,6 +151,8 @@ getRealDirectoryContents =
 crubadanFiles :: FilePath -> IO [(Language,FilePath)]
 crubadanFiles r = fmap (\d -> (d, r </> d </> "SAMPSENTS")) 
                   <$> getRealDirectoryContents r
+
+crubadanNames = getRealDirectoryContents
 
 build :: Connection -> [(Language, String)] -> IO (Table TriGramRow)
 build c ps = do t <- getTable c trigrams
@@ -175,6 +188,12 @@ trigramstest2 r = do conn <- connect "trigramsTest2.sqlite3"
                      res <- select sel ("main","en",20) 
                      disconnect conn
                      sequence_ (map print (freqList res))
+
+buildTrigramsTable :: Connection -> String -> IO ()
+buildTrigramsTable conn r = 
+  do table <- getEmptyTable conn trigrams
+     files <- crubadanFiles r
+     runEffect (buildDB files table) 
 
 buildDB :: [(Language,FilePath)] -> Table TriGramRow -> Effect IO ()
 buildDB fs t = each fs 
