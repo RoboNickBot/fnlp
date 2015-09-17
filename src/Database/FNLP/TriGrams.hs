@@ -11,6 +11,10 @@ import qualified Data.Map as M
 import Data.Convertible
 import Text.Read (readMaybe)
 import qualified Data.Text as T
+import System.Directory (getDirectoryContents)
+import System.FilePath
+import System.IO (hPutStrLn, hFlush, stderr)
+import qualified System.IO.Strict as Strict
 
 import Pipes
 import qualified Pipes.Prelude as Pipes
@@ -129,18 +133,30 @@ getAllTrigs = SelectionSchema (const [])
 -- Operations
 ----------------------------------------------------------------------
 
+getRealDirectoryContents = 
+  fmap (filter (\a -> (a /= ".") && (a /= ".."))) 
+  <$> getDirectoryContents
+
+crubadanFiles :: FilePath -> IO [(Language,FilePath)]
+crubadanFiles r = fmap (\d -> (d, r </> d </> "SAMPSENTS")) 
+                  <$> getRealDirectoryContents r
+
 build :: Connection -> [(Language, String)] -> IO (Table TriGramRow)
 build c ps = do t <- getTable c trigrams
                 undefined -- for (readMany) (insertLang t)
 
 readFilesP :: [String] -> Producer String IO ()
-readFilesP (p:ps) = do text <- lift (readFile p)
+readFilesP (p:ps) = do lift (deb p)
+                       text <- lift (Strict.readFile p)
                        yield text
                        readFilesP ps
+  where deb p = hPutStrLn stderr ("reading file" ++ p ++ " ...") 
+                >> hFlush stderr 
 readFilesP _ = return ()
 
 readLangFiles :: Pipe (Language, FilePath) (Language, String) IO ()
-readLangFiles = Pipes.mapM (mapM readFile)
+readLangFiles = Pipes.mapM (mapM (\f -> deb f >> Strict.readFile f))
+  where deb p = hPutStrLn stderr ("reading file" ++ p ++ " ...") 
 
 mkTGRows :: (Language, String) -> [TriGramRow]
 mkTGRows (l,s) = let fs = (freqList . features) (mkCharSeq s)
@@ -149,6 +165,22 @@ mkTGRows (l,s) = let fs = (freqList . features) (mkCharSeq s)
 
 insertConsumer :: Table r -> Consumer [r] IO ()
 insertConsumer t = Pipes.mapM_ (insert t)
+
+trigramstest2 :: String -> IO ()
+trigramstest2 r = do conn <- connect "trigramsTest2.sqlite3"
+                     table <- getEmptyTable conn trigrams
+                     files <- crubadanFiles r
+                     runEffect (buildDB (files) table)
+                     sel <- mkSelector table getLang
+                     res <- select sel ("main","en",20) 
+                     disconnect conn
+                     sequence_ (map print (freqList res))
+
+buildDB :: [(Language,FilePath)] -> Table TriGramRow -> Effect IO ()
+buildDB fs t = each fs 
+               >-> readLangFiles 
+               >-> Pipes.map mkTGRows 
+               >-> insertConsumer t
 
 trigramstest :: IO ()
 trigramstest = do conn <- connect "trigramsTest.sqlite3"

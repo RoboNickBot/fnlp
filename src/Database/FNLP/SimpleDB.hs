@@ -9,6 +9,7 @@ module Database.FNLP.SimpleDB
   , TableSchema (..)
   , Table
   , getTable
+  , getEmptyTable
   , dropTable
   
   , insert
@@ -79,6 +80,14 @@ getTable c sc = run c (creatorSt sc) []
                 >> prepare c (insertionString sc)
                 >>= (\iSt -> return (Table sc c iSt))
 
+getEmptyTable :: Connection -> TableSchema r -> IO (Table r)
+getEmptyTable c sc = dropTable' c (tableName sc) 
+                     >> getTable c sc
+
+dropTable' :: Connection -> String -> IO ()
+dropTable' c n = let s = "DROP TABLE IF EXISTS " ++ n
+                 in run c s [] >> commit c
+
 creatorSt :: TableSchema r -> String
 creatorSt sc = "CREATE TABLE IF NOT EXISTS " 
                ++ (tableName sc) 
@@ -88,9 +97,7 @@ rowSchema :: TableSchema r -> String
 rowSchema = commaSep . cols
 
 dropTable :: Table r -> IO ()
-dropTable t = let s = "DROP TABLE IF EXISTS " 
-                      ++ ((tableName . tableSchema) t)
-              in run (connection t) s [] >> commit (connection t)
+dropTable t = dropTable' (connection t) (tableName (tableSchema t))
 
 
 ----------------------------------------------------------------------
