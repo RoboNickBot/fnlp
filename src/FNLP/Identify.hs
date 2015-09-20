@@ -7,6 +7,7 @@ module FNLP.Identify
   -- * Identifiers
   , Identifier (..)
   , identify
+  , testID
   , allResults
   , goodResults
   , someResults
@@ -48,47 +49,64 @@ addToBoundedReport i (Report r) s = Report (take i (scoreSort (s:r)))
 
 type IdReport = Report Language Double
 
-type Identifier m r = Producer Candidate m () -> CharSeq -> m r
+type Identifier m r = Producer Candidate m () -> FreqList TriGram -> m r
+
+testID :: Monad m 
+       => Producer Candidate m () 
+       -> Candidate 
+       -> m (Bool, Language, Maybe Language)
+testID p (l,fr) = ev l <$> identify 0 p fr
+  where ev l1 (Just l2) = if l1 == l2
+                             then (True, l1, Just l2)
+                             else (False, l1, Just l2)
+        ev l1 Nothing = (False, l1, Nothing)
 
 -- | produces the best, if any, Language that scores above the
 --   threshold
 identify :: Monad m => Double -> Identifier m (Maybe Language)
-identify t prd cs = (fmap fst . listToMaybe . getScores)
-                    <$> goodResults t prd cs
+identify t prd fr = (fmap fst . listToMaybe . getScores)
+                    <$> goodResults t prd fr
 
 -- | produces all Language comparison scores
 allResults :: Monad m => Identifier m IdReport
-allResults prd cs = compile (prd >-> scores cs)
+allResults prd fr = compile (prd >-> scores fr)
 
 -- | produces all Languages that score above the threshold
 goodResults :: Monad m => Double -> Identifier m IdReport
-goodResults t prd cs = compile (prd >-> scores cs >-> filt)
+goodResults t prd fr = compile (prd >-> scores fr >-> filt)
   where filt = P.filter (testScore t)
 
 -- | produces the best n results
 someResults :: Monad m => Int -> Identifier m IdReport
-someResults n prd cs = compile' n (prd >-> scores cs)
+someResults n prd fr = compile' n (prd >-> scores fr)
 
 results :: Monad m 
         => Producer Candidate m () 
-        -> CharSeq 
+        -> FreqList TriGram
         -> Producer (Score Language Double) m ()
-results prd cs = prd >-> scores cs
+results prd fr = prd >-> scores fr
 
-streamResults :: Producer Candidate IO () -> CharSeq -> Effect IO ()
-streamResults prd cs = results prd cs >-> P.print
+streamResults :: Producer Candidate IO () -> FreqList TriGram -> Effect IO ()
+streamResults prd fr = results prd fr >-> P.print
 
 compile :: (Ord s, Monad m) => Producer (Score l s) m () -> m (Report l s)
 compile = P.fold addToReport mempty id
 
 compile' n = P.fold (addToBoundedReport n) mempty id
 
-scores cs = P.map (getScore cs)
-
-getScore :: CharSeq -> Candidate -> Score Language Double
-getScore t = fmap (cosine (trigs t))
+scores :: Monad m 
+       => FreqList TriGram 
+       -> Pipe Candidate (Score Language Double) m ()
+scores fr = P.map (fmap (cosine fr))
 
 trigs :: CharSeq -> FreqList TriGram
 trigs = features
 
 
+-- type Id' m r = Producer Candidate m () -> FreqList TriGram -> m r
+
+-- testID :: Producer Candidate m () -> Candidate -> m (Maybe Language)
+-- testID p c = undefined
+
+-- identify' :: Monad m => Double -> Id' m r
+-- identify' t p c = (fmap fst . listToMaybe . getScores) <$> results'
