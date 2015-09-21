@@ -54,12 +54,12 @@ type Identifier m r = Producer Candidate m () -> FreqList TriGram -> m r
 testID :: Monad m 
        => Producer Candidate m () 
        -> Candidate 
-       -> m (Bool, Language, Maybe Language)
-testID p (l,fr) = ev l <$> identify 0 p fr
-  where ev l1 (Just l2) = if l1 == l2
-                             then (True, l1, Just l2)
-                             else (False, l1, Just l2)
-        ev l1 Nothing = (False, l1, Nothing)
+       -> m (Language, Maybe Language)
+testID p (l,fr) = (,) l <$> identify 0 p fr
+  -- where ev l1 (Just l2) = if l1 == l2
+  --                            then (True, l1, Just l2)
+  --                            else (False, l1, Just l2)
+  --       ev l1 Nothing = (False, l1, Nothing)
 
 -- | produces the best, if any, Language that scores above the
 --   threshold
