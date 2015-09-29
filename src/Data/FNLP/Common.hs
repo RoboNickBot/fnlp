@@ -1,121 +1,101 @@
-{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
-module Data.FNLP.Common where
+module Data.FNLP.Common
+ ( Corpus
+ , corpus 
+ 
+ , UBlock
+ , UBlocks
+ 
+ , TriGram
+ , TriGrams
+ 
+ ) where
 
+import Data.Convertible
+import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Set as S
 
 import Data.CharSet.Unicode.Block (Block(..), blocks)
 import Data.CharSet (member)
-import Data.Char (isSpace, isAlpha, toLower)
+import Data.Char (isAlpha, toLower)
 
 import Data.FNLP.Core
 
 
 ----------------------------------------------------------------------
--- CharSeq
-----------------------------------------------------------------------
 
-newtype CharSeq = CharSeq { charSeq :: [Char] }
+newtype Corpus = Corpus Text
 
-class IsCharSeq x where
-  mkCharSeq :: x -> CharSeq
-  
-instance IsCharSeq String where
-  mkCharSeq = CharSeq
-  
-instance IsCharSeq T.Text where
-  mkCharSeq = CharSeq . T.unpack
+corpus = Corpus
 
+instance Convertible Corpus Text where
+  safeConvert (Corpus text) = Right text
 
-----------------------------------------------------------------------
--- Tokens
-----------------------------------------------------------------------
-
-data NGToken = WordStart | Letter Char | WordEnd
-               deriving (Show, Read, Eq, Ord)
-
-newtype OrderedTokenList = OrderedTokenList [NGToken]
-                           deriving (Show, Read, Eq, Ord)
-
-instance PState CharSeq OrderedTokenList PClosed
-instance LinkedTo CharSeq OrderedTokenList where
-  linkstep = OrderedTokenList . concat . smooth . charSeq
-
-newtype TokenList = TokenList [NGToken]
-                    deriving (Show, Read, Eq, Ord)
-
-instance PState OrderedTokenList TokenList PClosed
-instance LinkedTo OrderedTokenList TokenList where
-  linkstep (OrderedTokenList ts) = TokenList ts
-
-newtype TokenSet = TokenSet (S.Set NGToken)
-                   deriving (Show, Read, Eq, Ord)
-
-instance PState TokenList TokenSet PClosed
-instance LinkedTo TokenList TokenSet where
-  linkstep (TokenList ts) = TokenSet (S.fromList ts)
-
-smooth :: [Char] -> [[NGToken]]
-smooth = fmap wordToTok . words . fmap toLower 
-         . filter (\c -> isAlpha c 
-                         || isSpace c 
-                         || c == '\''
-                         || c == '-')
-
-fromTok :: NGToken -> Char
-fromTok WordStart = '<'
-fromTok WordEnd = '>'
-fromTok (Letter c) = c
-
-toTok :: Char -> NGToken
-toTok '<' = WordStart
-toTok '>' = WordEnd
-toTok c = Letter c
-
-wordToTok :: String -> [NGToken]
-wordToTok word = [WordStart] ++ (fmap Letter word) ++ [WordEnd]
+instance Convertible Text Corpus where
+  safeConvert = Right . corpus
 
 ----------------------------------------------------------------------
 -- Unicode Blocks
 ----------------------------------------------------------------------
 
-blocksUsed :: NGToken -> [String]
-blocksUsed (Letter c) =
-  (fmap blockName 
-   . filter (\b -> member c (blockCharSet b))) (blocks)
-blocksUsed _ = []
+blocksUsed :: Char -> [String]
+blocksUsed c = 
+  if isAlpha c
+     then (fmap blockName 
+           . filter (\b -> member c (blockCharSet b))) (blocks)
+     else []
 
-data UBlock = UBlock { ubname :: String } 
-              deriving (Show, Read, Eq, Ord)
+data UBlock = UBlock String deriving (Show, Read, Eq, Ord)
 
-newtype UBlockList = UBlockList { uBlockList :: [UBlock] }
+newtype UBlocks = UBlocks [UBlock]
 
-instance PState TokenList UBlockList PClosed
-instance LinkedTo TokenList UBlockList where
-  linkstep (TokenList ts) = 
-    UBlockList 
-    . fmap UBlock 
-    . foldr (\s -> (++) (blocksUsed s)) [] $ ts
+instance PState Corpus UBlocks PClosed
+instance LinkedTo Corpus UBlocks where
+  linkstep = UBlocks 
+             . fmap UBlock 
+             . foldr (\s -> (++) (blocksUsed s)) [] 
+             . T.unpack 
+             . convert
 
 
 ----------------------------------------------------------------------
 -- TriGrams
 ----------------------------------------------------------------------
 
-data TriGram = TriGram { tri1 :: NGToken
-                       , tri2 :: NGToken
-                       , tri3 :: NGToken }
-               deriving (Show, Read, Eq, Ord)
+newtype TriGram = TriGram Text deriving (Show, Read, Eq, Ord)
 
-newtype TriGramList = TriGramList { triGramList :: [TriGram] }
+instance Convertible Text TriGram where
+  safeConvert text = if T.length text == 3
+                        then Right (TriGram text)
+                        else convError "Not Three Characters" text
 
-instance PState OrderedTokenList TriGramList PClosed
-instance LinkedTo OrderedTokenList TriGramList where
-  linkstep (OrderedTokenList ts) = TriGramList (r ts)
-            where r (a:b:c:ts) = 
-                    (TriGram a b c) 
-                    : (if c == WordEnd
-                           then r ts
-                           else r (b:c:ts))
-                  r _ = []
+instance Convertible TriGram Text where
+  safeConvert (TriGram text) = Right text
+
+newtype TriGrams = TriGrams [TriGram]
+
+instance PState Corpus TriGrams PClosed
+instance LinkedTo Corpus TriGrams where
+  linkstep = TriGrams . concat . map trigrams . prepWords . convert
+
+newtype PrepWord = PrepWord Text
+
+trigrams :: PrepWord -> [TriGram]
+trigrams (PrepWord w) = 
+  if T.compareLength w 3 == LT
+     then []
+     else TriGram (T.take 3 w) : trigrams (PrepWord (T.drop 1 w))
+
+prepWords :: Text -> [PrepWord]
+prepWords = map PrepWord 
+            . map ends 
+            . map (T.map toLower) 
+            . map (T.filter ok) 
+            . T.words
+  where ok :: Char -> Bool
+        ok c = isAlpha c || c == '\'' || c == '-'
+        
+        ends :: Text -> Text
+        ends w = T.cons '^' (T.snoc w '$')
