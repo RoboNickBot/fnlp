@@ -90,7 +90,7 @@ trigrams = TableSchema "trigrams" rows mkRow
                ,"frequency   INT          NOT NULL"
                ,"cardinality INT          NOT NULL"]
         mkRow (TriGramRow d ch l t f c) = 
-          d /: ch /: l /: show t /: f /: c /: []
+          d /: ch /: l /: (convert :: TriGram -> SqlValue) t /: f /: c /: []
 
 data LengthRow = LengthRow Dataset Language Length 
                  deriving Show
