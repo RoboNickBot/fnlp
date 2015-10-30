@@ -99,7 +99,7 @@ scores :: Monad m
        -> Pipe Candidate (Score Language Double) m ()
 scores fr = P.map (fmap (cosine fr))
 
-trigs :: CharSeq -> FreqList TriGram
+trigs :: Corpus -> FreqList TriGram
 trigs = features
 
 

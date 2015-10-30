@@ -3,6 +3,7 @@ module Database.FNLP where
 import Pipes
 import qualified Pipes.Prelude as P
 import System.IO
+import qualified Data.Text.IO as TIO
 import qualified Data.List as L
 
 import Database.FNLP.SimpleDB
@@ -17,7 +18,7 @@ performBuild db src = do conn <- connect db
                          hPutStrLn stderr "All Done!"
 
 performIdentity db src = 
-  do st <- getContents
+  do st <- TIO.getContents
      conn <- connect db
      ls <- crubadanNames src
      t <- getTable conn trigrams
@@ -25,7 +26,7 @@ performIdentity db src =
      let pipe = langPipe' s "data" ls
      rep <- someResults 100 
                         pipe 
-                        (features $ mkCharSeq st)
+                        (features $ corpus st)
 
      putStrLn "\n-------------"
      putStrLn "Report:"

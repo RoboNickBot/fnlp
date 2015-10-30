@@ -15,6 +15,7 @@ import qualified Data.List as L
 import System.Directory (getDirectoryContents)
 import System.FilePath
 import System.IO (hPutStrLn, hFlush, stderr)
+import qualified Data.Text.IO as TIO (readFile)
 import qualified System.IO.Strict as Strict
 import Control.Monad (forever)
 
@@ -44,14 +45,15 @@ instance Convertible String TriGram where
                     Just b -> Right b
                     _ -> convError "DOES NOT COMPUTE" a
 
-instance Convertible SqlValue TriGram where
-  safeConvert = convertVia (undefined::String)
-
 instance Convertible TriGram String where
   safeConvert = Right . show
 
+
+instance Convertible SqlValue TriGram where
+  safeConvert = convertVia (undefined::T.Text)
+
 instance Convertible TriGram SqlValue where
-  safeConvert = convertVia (undefined::String)
+  safeConvert = convertVia (undefined::T.Text)
 
 
 instance Convertible Int Frequency where
@@ -160,21 +162,21 @@ crubadanFiles r = fmap (\d -> (d, r </> d </> "SAMPSENTS"))
 
 crubadanNames = getRealDirectoryContents
 
-readFilesP :: [String] -> Producer String IO ()
+readFilesP :: [String] -> Producer T.Text IO ()
 readFilesP (p:ps) = do lift (deb p)
-                       text <- lift (Strict.readFile p)
+                       text <- lift (TIO.readFile p)
                        yield text
                        readFilesP ps
   where deb p = hPutStrLn stderr ("reading file" ++ p ++ " ...") 
                 >> hFlush stderr 
 readFilesP _ = return ()
 
-readLangFiles :: Pipe (Language, FilePath) (Language, String) IO ()
-readLangFiles = Pipes.mapM (mapM (\f -> deb f >> Strict.readFile f))
+readLangFiles :: Pipe (Language, FilePath) (Language, T.Text) IO ()
+readLangFiles = Pipes.mapM (mapM (\f -> deb f >> TIO.readFile f))
   where deb p = hPutStrLn stderr ("reading file" ++ p ++ " ...") 
 
-mkTGRows' :: (Dataset, Language, String) -> [TriGramRow]
-mkTGRows' (d,l,s) = let fs = (freqList . features) (mkCharSeq s)
+mkTGRows' :: (Dataset, Language, T.Text) -> [TriGramRow]
+mkTGRows' (d,l,s) = let fs = (freqList . features) (corpus s)
                         row ((tg,fr),c) = TriGramRow d 0 l tg fr c
                     in map row (zip fs [0,1..])
 
@@ -208,15 +210,15 @@ buildDB p fs t = each fs
 
 splitLangFiles :: Monad IO
                => Int 
-               -> Pipe (Language, String) (Dataset, Language, String) IO ()
+               -> Pipe (Language, T.Text) (Dataset, Language, T.Text) IO ()
 splitLangFiles p = forever $ do (l,s) <- await
                                 lift (hPutStrLn stderr "splitting lang file")
-                                let ss = lines s
+                                let ss = T.lines s
                                     testLs = ceiling $ fromIntegral (length ss * p) / 100
                                     (sTest,sData) = L.splitAt testLs ss
-                                yield ("test", l, concat sTest)
+                                yield ("test", l, T.concat sTest)
                                 lift (hPutStrLn stderr "yielded 1")
-                                yield ("data", l, concat sData)
+                                yield ("data", l, T.concat sData)
                                 lift (hPutStrLn stderr "yielded 2")
 
 fakeSplitLangFiles _ = Pipes.map (\(l,s) -> ("data",l,s))
@@ -225,9 +227,9 @@ trigramstest :: IO ()
 trigramstest = do conn <- connect "trigramsTest.sqlite3"
                   table <- getTable conn trigrams
                   sel <- mkSelector table getAllTrigs
-                  let testDatas = [("eng","Hello World he")
-                                  ,("jap","Genki desu desu!")
-                                  ,("rus","Dostaprimachatlnista")]
+                  let testDatas = [("eng",T.pack "Hello World he")
+                                  ,("jap",T.pack "Genki desu desu!")
+                                  ,("rus",T.pack "Dostaprimachatlnista")]
                   runEffect (each testDatas 
                              >-> Pipes.map mkTGRows
                              >-> insertConsumer table)
