@@ -40,12 +40,12 @@ mkFreqList fs =
                               else M.insert t freqInit m)
                   M.empty fs)
 
-instance PState TriGramList (FreqList TriGram) PClosed
-instance LinkedTo TriGramList (FreqList TriGram) where
+instance PState TriGrams (FreqList TriGram) PClosed
+instance LinkedTo TriGrams (FreqList TriGram) where
   linkstep = mkFreqList . triGramList
 
-instance PState UBlockList (FreqList UBlock) PClosed
-instance LinkedTo UBlockList (FreqList UBlock) where
+instance PState UBlocks (FreqList UBlock) PClosed
+instance LinkedTo UBlocks (FreqList UBlock) where
   linkstep = mkFreqList . uBlockList
 
 showln (sg,f) = sg ++ " " ++ show f

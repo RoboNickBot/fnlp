@@ -5,11 +5,13 @@ module Data.FNLP.Common
  , corpus 
  
  , UBlock
- , UBlocks
- 
+ , ublock
+ , UBlocks (uBlockList)
+
  , TriGram
- , TriGrams
- 
+ , trigram
+ , TriGrams (triGramList)
+
  ) where
 
 import Data.Convertible
@@ -49,7 +51,9 @@ blocksUsed c =
 
 data UBlock = UBlock String deriving (Show, Read, Eq, Ord)
 
-newtype UBlocks = UBlocks [UBlock]
+ublock = UBlock
+
+newtype UBlocks = UBlocks { uBlockList :: [UBlock] }
 
 instance PState Corpus UBlocks PClosed
 instance LinkedTo Corpus UBlocks where
@@ -66,6 +70,8 @@ instance LinkedTo Corpus UBlocks where
 
 newtype TriGram = TriGram Text deriving (Show, Read, Eq, Ord)
 
+trigram = TriGram
+
 instance Convertible Text TriGram where
   safeConvert text = if T.length text == 3
                         then Right (TriGram text)
@@ -74,7 +80,7 @@ instance Convertible Text TriGram where
 instance Convertible TriGram Text where
   safeConvert (TriGram text) = Right text
 
-newtype TriGrams = TriGrams [TriGram]
+newtype TriGrams = TriGrams { triGramList :: [TriGram] }
 
 instance PState Corpus TriGrams PClosed
 instance LinkedTo Corpus TriGrams where

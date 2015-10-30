@@ -26,6 +26,6 @@ line = do a <- noneOf "\n "
           char ' '
           freq <- many (noneOf "\n")
           char '\n'
-          return (TriGram (toTok a) (toTok b) (toTok c)
+          return (trigram (T.pack (a:b:c:[]))
                  ,Frequency $ read freq)
 
