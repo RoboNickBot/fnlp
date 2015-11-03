@@ -7,15 +7,24 @@ import Criterion.Main
 
 import Database.FNLP
 
-main = defaultMain [ bench "build" (nfIO $ build 10)
-                   , bench "analize" (nfIO analize)]
+main :: IO ()
+main = prep >> defaultMain [ bench "build" (nfIO $ performBuild 10 
+                                                                "bench.sqlite3" 
+                                                                "crubadan-data-small")
+                           , bench "analize10" (nfIO $ analize "10" "bench10.sqlite3")
+                           , bench "analize30" (nfIO $ analize "30" "bench30.sqlite3")
+                           , bench "analize150" (nfIO $ analize "150" "bench150.sqlite3")]
 
-build size = do hPutStrLn stderr 
-                          "Performing Build Test (building \"bench.sqlite3\")"
-                performBuild size "bench.sqlite3" "crubadan-data-small"
+prep = build 10 >> build 30 >> build 150 >> return ()
 
-analize = do hPutStrLn stderr 
-                       "Performing Analysis Test (output to \"AREPORT.txt\")"
-             performAnalysis "bench.sqlite3" 
-                             "crubadan-data-small" 
-                             "AREPORT.txt"
+build size = do let file = "bench" ++ show size ++ ".sqlite3"
+                hPutStrLn stderr 
+                          ("building " ++ file ++ " for tests ...")
+                performBuild size file "crubadan-data-small"
+
+analize size file = 
+  do hPutStrLn stderr 
+               ("Performing Analysis Test (output to \"AREPORT" ++ size ++ ".txt\")")
+     performAnalysis file
+                     "crubadan-data-small" 
+                     ("AREPORT" ++ size ++ ".txt")
