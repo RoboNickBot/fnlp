@@ -12,10 +12,11 @@ import Data.FNLP
 
 import FNLP.Identify
 
-performBuild db src = do conn <- connect db
-                         buildTrigramsTable conn 10 src
-                         disconnect conn
-                         hPutStrLn stderr "All Done!"
+performBuild size db src = 
+  do conn <- connect db
+     buildTrigramsTable conn size 10 src
+     disconnect conn
+     hPutStrLn stderr "All Done!"
 
 performIdentity db src = 
   do st <- TIO.getContents
@@ -35,12 +36,13 @@ performIdentity db src =
      
 performAnalysis db src out = 
   do conn <- connect db
-     ls <- crubadanNames src
      t <- getTable conn trigrams
-     sData <- mkSelector t getLang
-     sTest <- mkSelector t getLang
-     let dataPipe = langPipe' sData "data" ls
-         testPipe = langPipe' sTest "test" ls
+     chunkIDs <- mkSelector t listChunks >>= \s -> select s ()
+     print chunkIDs
+     sData <- mkSelector t (chunks 50 "data")
+     sTest <- mkSelector t (chunks 50 "test")
+     let dataPipe = spoutCat sData chunkIDs -- langPipe' sData "data" ls
+         testPipe = spoutCat sTest chunkIDs -- langPipe' sTest "test" ls
          results = cross testID testPipe dataPipe
      outStr <- show <$> compileAReport results
      writeFile out outStr

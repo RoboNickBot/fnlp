@@ -148,7 +148,9 @@ selectionString t s = let n = (tableName . tableSchema) t
                           c = constraintString s
                       in "SELECT " ++ commaSep fs 
                          ++ " FROM " ++ n
-                         ++ " WHERE " ++ c
+                         ++ (if c == ""
+                                then ""
+                                else " WHERE " ++ c)
 
 andClause :: [String] -> String
 andClause = andSep . map (++ " = ?")

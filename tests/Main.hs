@@ -12,8 +12,7 @@ main = getArgs >>= (\args -> case args of
 
 build = do hPutStrLn stderr 
                      "Performing Build Test (building \"bench.sqlite3\")"
-           performBuild "bench.sqlite3" 
-                        "crubadan-data-small"
+           performBuild 10 "bench.sqlite3" "crubadan-data-small"
 
 analize = do hPutStrLn stderr 
                        "Performing Analysis Test (output to \"AREPORT.txt\")"

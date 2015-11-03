@@ -7,13 +7,12 @@ import Criterion.Main
 
 import Database.FNLP
 
-main = defaultMain [ bench "build" (nfIO build)
+main = defaultMain [ bench "build" (nfIO $ build 10)
                    , bench "analize" (nfIO analize)]
 
-build = do hPutStrLn stderr 
-                     "Performing Build Test (building \"bench.sqlite3\")"
-           performBuild "bench.sqlite3" 
-                        "crubadan-data-small"
+build size = do hPutStrLn stderr 
+                          "Performing Build Test (building \"bench.sqlite3\")"
+                performBuild size "bench.sqlite3" "crubadan-data-small"
 
 analize = do hPutStrLn stderr 
                        "Performing Analysis Test (output to \"AREPORT.txt\")"

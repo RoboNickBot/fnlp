@@ -108,6 +108,8 @@ lengths = TableSchema "lengths" rows mkRow
 -- Selectors
 ----------------------------------------------------------------------
 
+noArgs = const []
+
 getLengths :: SelectionSchema Dataset (M.Map Language Length)
 getLengths = SelectionSchema (/: []) 
                              packLengths
@@ -128,15 +130,81 @@ getLang = SelectionSchema (\(d,l,c) -> d /: l /: c /: [])
   where s = "dataset = ? AND language = ? AND cardinality < ?"
 
 getAllTrigs :: SelectionSchema () [(Language,TriGram,Frequency,Cardinality)]
-getAllTrigs = SelectionSchema (const []) 
+getAllTrigs = SelectionSchema noArgs
                               (map sqlsTup4) 
                               ["language","trigram","frequency","cardinality"]
                               "dataset = \"main\""
 
+distinct :: (Convertible SqlValue v) => v -> String -> SelectionSchema () [v]
+distinct _ f = SelectionSchema noArgs (map sqlsBare) ["DISTINCT " ++ f] ""
+
+listChunks :: SelectionSchema () [ChunkID]
+listChunks = distinct undefined "chunkid"
+
+listLangs :: SelectionSchema () [Language]
+listLangs = distinct undefined "language"
+
+getChunk :: SelectionSchema (Dataset, ChunkID, Cardinality) Chunk
+getChunk = SelectionSchema (\(d,i,c) -> d /: i /: c /: [])
+                           (mkChunk . map sqlsTup3)
+                           ["language","trigram","frequency"]
+                           s
+  where s = "dataset = ? AND chunkid = ? AND cardinality < ?"
+
+chunks :: Cardinality -> Dataset -> SelectionSchema ChunkID Chunk
+chunks c d = SelectionSchema (\i -> d /: i /: c /: [])
+                             (mkChunk . map sqlsTup3)
+                             ["language","trigram","frequency"]
+                             s
+  where s = "dataset = ? AND chunkid = ? AND cardinality < ?"
+
+mkChunk :: [(Language, TriGram, Frequency)] -> Chunk
+mkChunk = map mkFreq . combLs . map tupSep
+  where tupSep (a,b,c) = (a,(b,c))
+
+        combLs :: [(Language, (TriGram, Frequency))] -> [(Language, [(TriGram, Frequency)])]
+        combLs = M.toList . L.foldl' ap M.empty
+          where ap m (l,f) = let fs = case M.lookup l m of
+                                        Just a -> a
+                                        _ -> []
+                             in M.insert l (f:fs) m
+
+        mkFreq :: (Language, [(TriGram, Frequency)]) -> (Language, FreqList TriGram)
+        mkFreq (l,f) = (l, FreqList . M.fromList $ f)
+
+
 ----------------------------------------------------------------------
--- Operations
+-- Producers
 ----------------------------------------------------------------------
 
+type Chunk = [(Language, FreqList TriGram)]
+
+spout :: Show a => Selector r a b -> [a] -> Producer b IO ()
+spout s as = each as >-> Pipes.mapM dbg >-> Pipes.mapM (select s)
+  where dbg a = hPutStrLn stderr ("spouting item \"" 
+                                  ++ show a 
+                                  ++ "\" ...")
+                >> hFlush stderr
+                >> return a
+
+spoutCat :: Show a => Selector r a [b] -> [a] -> Producer b IO ()
+spoutCat s as = spout s as >-> Pipes.concat
+
+chunkPipe :: Selector TriGramRow
+                      (Dataset, ChunkID, Cardinality)
+                      Chunk
+          -> Cardinality
+          -> Dataset
+          -> [ChunkID]
+          -> Producer Chunk IO ()
+chunkPipe s c d is = each is >-> Pipes.mapM dbg >-> Pipes.mapM get
+  where get i = select s (d,i,c)
+        dbg i = hPutStrLn stderr ("serving chunk " ++ show i ++ " ...")
+                >> hFlush stderr
+                >> return i
+
+breakChunks :: Monad m => Pipe [a] a m ()
+breakChunks = Pipes.concat
 
 langPipe' :: Selector TriGramRow 
                       (Dataset, Language, Cardinality) 
@@ -175,10 +243,29 @@ readLangFiles :: Pipe (Language, FilePath) (Language, T.Text) IO ()
 readLangFiles = Pipes.mapM (mapM (\f -> deb f >> TIO.readFile f))
   where deb p = hPutStrLn stderr ("reading file" ++ p ++ " ...") 
 
+
+----------------------------------------------------------------------
+-- Operations
+----------------------------------------------------------------------
+
+chunkRows :: Monad m 
+          => Int 
+          -> Pipe (Dataset, Language, T.Text) [TriGramRow] m ()
+chunkRows size = pipe 0 size
+  where pipe c s = do (d,l,t) <- await
+                      yield (mkTGRows'' (c,d,l,t))
+                      if s <= 1
+                         then pipe (c + 1) size
+                         else pipe c (s - 1)
+
+mkTGRows'' :: (ChunkID, Dataset, Language, T.Text) -> [TriGramRow]
+mkTGRows'' (cid,d,l,s) = 
+  let fs = (freqList . features) (corpus s)
+      row ((tg,fr),c) = TriGramRow d cid l tg fr c
+  in map row (zip fs [0,1..])
+
 mkTGRows' :: (Dataset, Language, T.Text) -> [TriGramRow]
-mkTGRows' (d,l,s) = let fs = (freqList . features) (corpus s)
-                        row ((tg,fr),c) = TriGramRow d 0 l tg fr c
-                    in map row (zip fs [0,1..])
+mkTGRows' (d,l,s) = mkTGRows'' (0,d,l,s)
 
 mkTGRows (l,s) = mkTGRows' ("data",l,s)
 
@@ -189,24 +276,24 @@ trigramstest2 :: String -> IO ()
 trigramstest2 r = do conn <- connect "trigramsTest2.sqlite3"
                      table <- getEmptyTable conn trigrams
                      files <- crubadanFiles r
-                     runEffect (buildDB 0 (files) table)
+                     runEffect (buildDB 1 0 (files) table)
                      sel <- mkSelector table getLang
                      res <- select sel ("main","en",20) 
                      disconnect conn
                      sequence_ (map print (freqList res))
 
-buildTrigramsTable :: Connection -> Int -> String -> IO ()
-buildTrigramsTable conn p r = 
+buildTrigramsTable :: Connection -> Int -> Int -> String -> IO ()
+buildTrigramsTable conn chunkSize p r = 
   do table <- getEmptyTable conn trigrams
      files <- crubadanFiles r
-     runEffect (buildDB p files table) 
+     runEffect (buildDB chunkSize p files table) 
 
-buildDB :: Int -> [(Language,FilePath)] -> Table TriGramRow -> Effect IO ()
-buildDB p fs t = each fs 
-                 >-> readLangFiles
-                 >-> splitLangFiles p
-                 >-> Pipes.map mkTGRows'
-                 >-> insertConsumer t
+buildDB :: Int -> Int -> [(Language,FilePath)] -> Table TriGramRow -> Effect IO ()
+buildDB chunkSize p fs t = each fs 
+                           >-> readLangFiles
+                           >-> splitLangFiles p
+                           >-> chunkRows chunkSize -- Pipes.map mkTGRows'
+                           >-> insertConsumer t
 
 splitLangFiles :: Monad IO
                => Int 
