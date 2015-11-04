@@ -144,13 +144,6 @@ listChunks = distinct undefined "chunkid"
 listLangs :: SelectionSchema () [Language]
 listLangs = distinct undefined "language"
 
-getChunk :: SelectionSchema (Dataset, ChunkID, Cardinality) Chunk
-getChunk = SelectionSchema (\(d,i,c) -> d /: i /: c /: [])
-                           (mkChunk . map sqlsTup3)
-                           ["language","trigram","frequency"]
-                           s
-  where s = "dataset = ? AND chunkid = ? AND cardinality < ?"
-
 chunks :: Cardinality -> Dataset -> SelectionSchema ChunkID Chunk
 chunks c d = SelectionSchema (\i -> d /: i /: c /: [])
                              (mkChunk . map sqlsTup3)
@@ -190,35 +183,6 @@ spout s as = each as >-> Pipes.mapM dbg >-> Pipes.mapM (select s)
 spoutCat :: Show a => Selector r a [b] -> [a] -> Producer b IO ()
 spoutCat s as = spout s as >-> Pipes.concat
 
-chunkPipe :: Selector TriGramRow
-                      (Dataset, ChunkID, Cardinality)
-                      Chunk
-          -> Cardinality
-          -> Dataset
-          -> [ChunkID]
-          -> Producer Chunk IO ()
-chunkPipe s c d is = each is >-> Pipes.mapM dbg >-> Pipes.mapM get
-  where get i = select s (d,i,c)
-        dbg i = hPutStrLn stderr ("serving chunk " ++ show i ++ " ...")
-                >> hFlush stderr
-                >> return i
-
-breakChunks :: Monad m => Pipe [a] a m ()
-breakChunks = Pipes.concat
-
-langPipe' :: Selector TriGramRow 
-                      (Dataset, Language, Cardinality) 
-                      (FreqList TriGram)
-          -> Dataset
-          -> [Language] 
-          -> Producer (Language, FreqList TriGram) IO ()
-langPipe' s d ls = each ls >-> Pipes.mapM dbg >-> Pipes.mapM get
-  where get l = (,) l <$> select s (d,l,50)
-        dbg l = hPutStrLn stderr ("serving lang " ++ l ++ " ...") 
-                >> hFlush stderr
-                >> return l
-
-langPipe s ls = langPipe' s "data" ls
 
 getRealDirectoryContents = 
   fmap (filter (\a -> (a /= ".") && (a /= ".."))) 
@@ -272,15 +236,15 @@ mkTGRows (l,s) = mkTGRows' ("data",l,s)
 insertConsumer :: Table r -> Consumer [r] IO ()
 insertConsumer t = Pipes.mapM_ (insert t)
 
-trigramstest2 :: String -> IO ()
-trigramstest2 r = do conn <- connect "trigramsTest2.sqlite3"
-                     table <- getEmptyTable conn trigrams
-                     files <- crubadanFiles r
-                     runEffect (buildDB 1 0 (files) table)
-                     sel <- mkSelector table getLang
-                     res <- select sel ("main","en",20) 
-                     disconnect conn
-                     sequence_ (map print (freqList res))
+-- trigramstest2 :: String -> IO ()
+-- trigramstest2 r = do conn <- connect "trigramsTest2.sqlite3"
+--                      table <- getEmptyTable conn trigrams
+--                      files <- crubadanFiles r
+--                      runEffect (buildDB 1 0 (files) table)
+--                      sel <- mkSelector table getLang
+--                      res <- select sel ("main","en",20) 
+--                      disconnect conn
+--                      sequence_ (map print (freqList res))
 
 buildTrigramsTable :: Connection -> Int -> Int -> String -> IO ()
 buildTrigramsTable conn chunkSize p r = 
@@ -292,7 +256,7 @@ buildDB :: Int -> Int -> [(Language,FilePath)] -> Table TriGramRow -> Effect IO 
 buildDB chunkSize p fs t = each fs 
                            >-> readLangFiles
                            >-> splitLangFiles p
-                           >-> chunkRows chunkSize -- Pipes.map mkTGRows'
+                           >-> chunkRows chunkSize
                            >-> insertConsumer t
 
 splitLangFiles :: Monad IO
@@ -308,45 +272,45 @@ splitLangFiles p = forever $ do (l,s) <- await
                                 yield ("data", l, T.concat sData)
                                 lift (hPutStrLn stderr "yielded 2")
 
-fakeSplitLangFiles _ = Pipes.map (\(l,s) -> ("data",l,s))
+-- fakeSplitLangFiles _ = Pipes.map (\(l,s) -> ("data",l,s))
 
-trigramstest :: IO ()
-trigramstest = do conn <- connect "trigramsTest.sqlite3"
-                  table <- getTable conn trigrams
-                  sel <- mkSelector table getAllTrigs
-                  let testDatas = [("eng",T.pack "Hello World he")
-                                  ,("jap",T.pack "Genki desu desu!")
-                                  ,("rus",T.pack "Dostaprimachatlnista")]
-                  runEffect (each testDatas 
-                             >-> Pipes.map mkTGRows
-                             >-> insertConsumer table)
-                  res1 <- select sel () 
-                  sequence_ $ map print res1
-                  dropTable table
-                  disconnect conn
+-- trigramstest :: IO ()
+-- trigramstest = do conn <- connect "trigramsTest.sqlite3"
+--                   table <- getTable conn trigrams
+--                   sel <- mkSelector table getAllTrigs
+--                   let testDatas = [("eng",T.pack "Hello World he")
+--                                   ,("jap",T.pack "Genki desu desu!")
+--                                   ,("rus",T.pack "Dostaprimachatlnista")]
+--                   runEffect (each testDatas 
+--                              >-> Pipes.map mkTGRows
+--                              >-> insertConsumer table)
+--                   res1 <- select sel () 
+--                   sequence_ $ map print res1
+--                   dropTable table
+--                   disconnect conn
 
-test :: IO ()
-test = do conn <- connect "test.sqlite3"
-          table <- getTable conn lengths
-          sel <- mkSelector table getLengths
-          print testData
-          ret1 <- select sel "main"          
+-- test :: IO ()
+-- test = do conn <- connect "test.sqlite3"
+--           table <- getTable conn lengths
+--           sel <- mkSelector table getLengths
+--           print testData
+--           ret1 <- select sel "main"          
 
-          insert table testData
-          ret2 <- select sel "main"
-          dropTable table
-          table2 <- getTable conn lengths
-          sel2 <- mkSelector table getLengths
-          ret3 <- select sel "alt"
+--           insert table testData
+--           ret2 <- select sel "main"
+--           dropTable table
+--           table2 <- getTable conn lengths
+--           sel2 <- mkSelector table getLengths
+--           ret3 <- select sel "alt"
           
-          disconnect conn
-          putStrLn $ "ret1: " ++ show ret1
-          putStrLn $ "ret2: " ++ show ret2
-          putStrLn $ "ret3: " ++ show ret3
+--           disconnect conn
+--           putStrLn $ "ret1: " ++ show ret1
+--           putStrLn $ "ret2: " ++ show ret2
+--           putStrLn $ "ret3: " ++ show ret3
 
-testData :: [LengthRow]
-testData = [lr "main" "eng" 56
-           ,lr "main" "rus" 66
-           ,lr "alt"  "rus" 88
-           ,lr "main" "jap" 5783]
-  where lr = LengthRow
+-- testData :: [LengthRow]
+-- testData = [lr "main" "eng" 56
+--            ,lr "main" "rus" 66
+--            ,lr "alt"  "rus" 88
+--            ,lr "main" "jap" 5783]
+--   where lr = LengthRow

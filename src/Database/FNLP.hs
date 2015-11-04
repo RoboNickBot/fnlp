@@ -18,21 +18,23 @@ performBuild size db src =
      disconnect conn
      hPutStrLn stderr "All Done!"
 
-performIdentity db src = 
-  do st <- TIO.getContents
-     conn <- connect db
-     ls <- crubadanNames src
-     t <- getTable conn trigrams
-     s <- mkSelector t getLang
-     let pipe = langPipe' s "data" ls
-     rep <- someResults 100 
-                        pipe 
-                        (features $ corpus st)
+-- performIdentity needs to be updated to use the chunk pipe
 
-     putStrLn "\n-------------"
-     putStrLn "Report:"
-     putStrLn "-------------"
-     sequence_ (map print (getScores rep))
+-- performIdentity db src = 
+--   do st <- TIO.getContents
+--      conn <- connect db
+--      ls <- crubadanNames src
+--      t <- getTable conn trigrams
+--      s <- mkSelector t getLang
+--      let pipe = langPipe' s "data" ls
+--      rep <- someResults 100 
+--                         pipe 
+--                         (features $ corpus st)
+
+--      putStrLn "\n-------------"
+--      putStrLn "Report:"
+--      putStrLn "-------------"
+--      sequence_ (map print (getScores rep))
      
 performAnalysis db src out = 
   do conn <- connect db
