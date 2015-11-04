@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE Rank2Types #-}
 
 module Database.FNLP.SimpleDB 
   ( connect
@@ -30,6 +31,10 @@ module Database.FNLP.SimpleDB
   , SqlValue
   , Convertible
 
+  , Spout
+  , spout
+  , spoutCat
+
   ) where
 
 import Database.HDBC
@@ -37,6 +42,10 @@ import Database.HDBC.Sqlite3
 
 import qualified Data.List as L
 import Data.Convertible (Convertible)
+import System.IO (hPutStrLn, hFlush, stderr)
+
+import Pipes
+import qualified Pipes.Prelude as Pipes
 
 
 commaSep :: [String] -> String
@@ -166,4 +175,19 @@ select s a = let arg = (selectionArg . selectionSchema) s
              in execute st (arg a) 
                 >> get <$> fetchAllRows' st
 
+----------------------------------------------------------------------
+-- Pipes
+----------------------------------------------------------------------
 
+type Spout a b c = forall r. Selector r a b -> [a] -> Producer c IO ()
+
+spout :: Show a => Spout a b b
+spout s as = each as >-> Pipes.mapM dbg >-> Pipes.mapM (select s)
+  where dbg a = hPutStrLn stderr ("spouting item \"" 
+                                  ++ show a 
+                                  ++ "\" ...")
+                >> hFlush stderr
+                >> return a
+
+spoutCat :: (Show a, Foldable f) => Spout a (f b) b
+spoutCat s as = spout s as >-> Pipes.concat

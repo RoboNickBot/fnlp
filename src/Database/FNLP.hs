@@ -1,4 +1,9 @@
-module Database.FNLP where
+module Database.FNLP
+  ( performBuild
+  , performAnalysis
+  , performIdentity
+  
+  ) where
 
 import Pipes
 import qualified Pipes.Prelude as P
@@ -7,7 +12,7 @@ import qualified Data.Text.IO as TIO
 import qualified Data.List as L
 
 import Database.FNLP.SimpleDB
-import Database.FNLP.TriGrams
+import Database.FNLP.TriGrams (buildTrigramsTable, trigrams, Language, listChunks, chunks)
 import Data.FNLP
 
 import FNLP.Identify
@@ -19,6 +24,8 @@ performBuild size db src =
      hPutStrLn stderr "All Done!"
 
 -- performIdentity needs to be updated to use the chunk pipe
+
+performIdentity = undefined
 
 -- performIdentity db src = 
 --   do st <- TIO.getContents
@@ -43,8 +50,8 @@ performAnalysis db src out =
      print chunkIDs
      sData <- mkSelector t (chunks 50 "data")
      sTest <- mkSelector t (chunks 50 "test")
-     let dataPipe = spoutCat sData chunkIDs -- langPipe' sData "data" ls
-         testPipe = spoutCat sTest chunkIDs -- langPipe' sTest "test" ls
+     let dataPipe = spoutCat sData chunkIDs
+         testPipe = spoutCat sTest chunkIDs
          results = cross testID testPipe dataPipe
      outStr <- show <$> compileAReport results
      writeFile out outStr
@@ -55,11 +62,6 @@ cross :: Monad m
       -> Producer a m r
       -> Producer b m r
 cross f pt pd = pt >-> P.mapM (f pd)
-
-mkOutput :: (Bool, Language, Maybe Language) -> String
-mkOutput (True,l1,l2)  = " [ ] " ++ l1 ++ ", " ++ show l2
-mkOutput (False,l1,l2) = " [x] " ++ l1 ++ ", " ++ show l2
-
 
 type AScore = (Language, Maybe Language)
 

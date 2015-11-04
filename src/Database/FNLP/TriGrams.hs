@@ -5,7 +5,15 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module Database.FNLP.TriGrams where
+module Database.FNLP.TriGrams 
+  ( trigrams
+  , buildTrigramsTable
+  , spoutCat
+  , Language
+  , listChunks
+  , chunks
+  
+  ) where
 
 import qualified Data.Map as M
 import Data.Convertible
@@ -172,16 +180,16 @@ mkChunk = map mkFreq . combLs . map tupSep
 
 type Chunk = [(Language, FreqList TriGram)]
 
-spout :: Show a => Selector r a b -> [a] -> Producer b IO ()
-spout s as = each as >-> Pipes.mapM dbg >-> Pipes.mapM (select s)
-  where dbg a = hPutStrLn stderr ("spouting item \"" 
-                                  ++ show a 
-                                  ++ "\" ...")
-                >> hFlush stderr
-                >> return a
+-- spout :: Show a => Selector r a b -> [a] -> Producer b IO ()
+-- spout s as = each as >-> Pipes.mapM dbg >-> Pipes.mapM (select s)
+--   where dbg a = hPutStrLn stderr ("spouting item \"" 
+--                                   ++ show a 
+--                                   ++ "\" ...")
+--                 >> hFlush stderr
+--                 >> return a
 
-spoutCat :: Show a => Selector r a [b] -> [a] -> Producer b IO ()
-spoutCat s as = spout s as >-> Pipes.concat
+-- spoutCat :: Show a => Selector r a [b] -> [a] -> Producer b IO ()
+-- spoutCat s as = spout s as >-> Pipes.concat
 
 
 getRealDirectoryContents = 
