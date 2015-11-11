@@ -8,8 +8,13 @@
 module Database.FNLP.TriGrams 
   ( trigrams
   , buildTrigramsTable
-  , spoutCat
+   
   , Language
+  , Dataset
+  , Cardinality
+  , Length
+  , ChunkID
+
   , listChunks
   , chunks
   
