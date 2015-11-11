@@ -3,46 +3,52 @@ module Database.FNLP
   , performAnalysis
   , performIdentity
   
+  , textReadFile
+
   ) where
 
 import Pipes
 import qualified Pipes.Prelude as P
 import System.IO
+import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import qualified Data.List as L
 
 import Database.FNLP.SimpleDB
-import Database.FNLP.TriGrams (buildTrigramsTable, trigrams, Language, listChunks, chunks)
+import Database.FNLP.TriGrams
 import Data.FNLP
 
 import FNLP.Identify
 
+textReadFile = TIO.readFile
+
+performBuild :: Cardinality -> FilePath -> FilePath -> IO ()
 performBuild size db src = 
   do conn <- connect db
      buildTrigramsTable conn size 10 src
      disconnect conn
      hPutStrLn stderr "All Done!"
 
--- performIdentity needs to be updated to use the chunk pipe
+performIdentity :: FilePath -> T.Text -> IO String
+performIdentity db text = 
+  do conn <- connect db
+     t <- getTable conn trigrams
 
-performIdentity = undefined
+     chunkIDs <- mkSelector t listChunks >>= \s -> select s ()
+     sData <- mkSelector t (chunks 50 "data")
+     let langs = spoutCat sData chunkIDs
+     report <- someResults 20 langs (features $ corpus text)
+          
+     return (prettyr report)
 
--- performIdentity db src = 
---   do st <- TIO.getContents
---      conn <- connect db
---      ls <- crubadanNames src
---      t <- getTable conn trigrams
---      s <- mkSelector t getLang
---      let pipe = langPipe' s "data" ls
---      rep <- someResults 100 
---                         pipe 
---                         (features $ corpus st)
+prettyr report = 
+  "-------------\n\
+  \Report:\n\
+  \-------------\n"
+  ++ concat (L.intersperse "\n" (map show (getScores report)))
+  ++ "\n"
 
---      putStrLn "\n-------------"
---      putStrLn "Report:"
---      putStrLn "-------------"
---      sequence_ (map print (getScores rep))
-     
+performAnalysis :: FilePath -> FilePath -> FilePath -> IO ()
 performAnalysis db src out = 
   do conn <- connect db
      t <- getTable conn trigrams
