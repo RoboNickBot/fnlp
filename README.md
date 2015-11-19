@@ -4,7 +4,7 @@
 It's sort of modeled on [NLTK](http://www.nltk.org/).  Right now,
 everything is very much **under construction**.
 
-This is also based on the earlier
+This is also a continuation of the earlier
 [nlp-libs](https://github.com/RoboNickBot/nlp-libs) and
 [nlp-tools](https://github.com/RoboNickBot/nlp-tools) packages I made
 for the [*An Crúbadán*](crubadan.org) project.
