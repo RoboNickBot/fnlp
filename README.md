@@ -4,6 +4,11 @@
 It's sort of modeled on [NLTK](http://www.nltk.org/).  Right now,
 everything is very much **under construction**.
 
+This is also based on the earlier
+[nlp-libs](https://github.com/RoboNickBot/nlp-libs) and
+[nlp-tools](https://github.com/RoboNickBot/nlp-tools) packages I made
+for the [*An Crúbadán*](crubadan.org) project.
+
 ## Quick start
 
 There aren't any quickly accessible modules or tools yet.  More
@@ -16,7 +21,7 @@ Right now, the library can only perform writing-system classification
 using cosines of trigram frequency lists.  For this purpose, it has a
 database model (sqlite3) for storing text corpora and functions for
 properly streaming (using
-[`Pipes`](http://hackage.haskell.org/package/pipes)) the operations.
+[`pipes`](http://hackage.haskell.org/package/pipes)) the operations.
 
 ## Philosophy
 
