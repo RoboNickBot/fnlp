@@ -1,8 +1,8 @@
 module FNLP.Identify
   ( Candidate (..)
   , Score (..)
-  , Report (..)
-  , IdReport (..)
+  , ReportOld (..)
+  , IdReportOld (..)
   
   -- * Identifiers
   , Identifier (..)
@@ -20,6 +20,8 @@ import Data.Foldable (fold)
 import Data.Maybe (listToMaybe)
 
 import Data.FNLP
+import qualified Data.FNLP.Reports as R
+import Pipes.FNLP.Comparators
 import Database.FNLP.SimpleDB
 import Database.FNLP.TriGrams
 
@@ -35,19 +37,19 @@ scoreSort = L.sortBy (\(_,a) (_,b) -> compare b a)
 testScore :: Ord s => s -> Score l s -> Bool
 testScore t (l,s) = s >= t
 
-newtype Report l s = Report { getScores :: [Score l s] }
+newtype ReportOld l s = ReportOld { getScores :: [Score l s] }
 
-instance Ord s => Monoid (Report l s) where
-  mappend (Report as) (Report bs) = Report $ scoreSort (as ++ bs)
-  mempty = Report []
+instance Ord s => Monoid (ReportOld l s) where
+  mappend (ReportOld as) (ReportOld bs) = ReportOld $ scoreSort (as ++ bs)
+  mempty = ReportOld []
 
-addToReport :: Ord s => Report l s -> Score l s -> Report l s
-addToReport (Report r) s = Report (scoreSort (s:r))
+addToReportOld :: Ord s => ReportOld l s -> Score l s -> ReportOld l s
+addToReportOld (ReportOld r) s = ReportOld (scoreSort (s:r))
 
-addToBoundedReport ::Ord s => Int -> Report l s -> Score l s -> Report l s
-addToBoundedReport i (Report r) s = Report (take i (scoreSort (s:r)))
+addToBoundedReportOld ::Ord s => Int -> ReportOld l s -> Score l s -> ReportOld l s
+addToBoundedReportOld i (ReportOld r) s = ReportOld (take i (scoreSort (s:r)))
 
-type IdReport = Report Language Double
+type IdReportOld = ReportOld Language Double
 
 type Identifier m r = Producer Candidate m () -> FreqList TriGram -> m r
 
@@ -68,16 +70,16 @@ identify t prd fr = (fmap fst . listToMaybe . getScores)
                     <$> goodResults t prd fr
 
 -- | produces all Language comparison scores
-allResults :: Monad m => Identifier m IdReport
+allResults :: Monad m => Identifier m IdReportOld
 allResults prd fr = compile (prd >-> scores fr)
 
 -- | produces all Languages that score above the threshold
-goodResults :: Monad m => Double -> Identifier m IdReport
+goodResults :: Monad m => Double -> Identifier m IdReportOld
 goodResults t prd fr = compile (prd >-> scores fr >-> filt)
   where filt = P.filter (testScore t)
 
 -- | produces the best n results
-someResults :: Monad m => Int -> Identifier m IdReport
+someResults :: Monad m => Int -> Identifier m IdReportOld
 someResults n prd fr = compile' n (prd >-> scores fr)
 
 results :: Monad m 
@@ -89,10 +91,10 @@ results prd fr = prd >-> scores fr
 streamResults :: Producer Candidate IO () -> FreqList TriGram -> Effect IO ()
 streamResults prd fr = results prd fr >-> P.print
 
-compile :: (Ord s, Monad m) => Producer (Score l s) m () -> m (Report l s)
-compile = P.fold addToReport mempty id
+compile :: (Ord s, Monad m) => Producer (Score l s) m () -> m (ReportOld l s)
+compile = P.fold addToReportOld mempty id
 
-compile' n = P.fold (addToBoundedReport n) mempty id
+compile' n = P.fold (addToBoundedReportOld n) mempty id
 
 scores :: Monad m 
        => FreqList TriGram 
