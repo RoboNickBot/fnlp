@@ -17,7 +17,6 @@ module Pipes.FNLP.Comparators
   
   ) where
 
-import Data.Convertible (Convertible, convert)
 import Pipes
 import qualified Pipes.Prelude as P
 
