@@ -2,8 +2,9 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
 
-module Data.FNLP.Reports 
+module Data.FNLP.Report
   ( 
+  
   -- * The 'Report' typeclass
     Report (add)
   , blank
@@ -49,7 +50,7 @@ instance (Ord v) => Monoid (OLRep v) where
 instance (Ord v) => Report (OLRep v) v where
   add (OLRep r) v = OLRep $ sort (v : r)
 
--- | A report which holds only the maximum score received
+-- | A report which holds only the maximum score (if any) received
 newtype (Ord v) => TRep v = TRep (Maybe v) 
   deriving (Show, Eq, Ord)
 
