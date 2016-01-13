@@ -59,3 +59,4 @@ instance (Ord v) => Monoid (TRep v) where
 
 instance (Ord v) => Report (TRep v) v where
   add r v = r `mappend` (TRep (Just v))
+
