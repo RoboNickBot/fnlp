@@ -1,8 +1,27 @@
 {-# LANGUAGE FlexibleInstances #-}
 
-{-| Pipe functions useful for classification operations -}
+{-| Functions for comparing things together -}
 
-module Pipes.FNLP.Comparator where
+module Pipes.FNLP.Comparator 
+  (
+  
+    Comparator (..)
+  , comparator
+
+  , Comparison (..)
+
+  , Collector
+  , collector
+  
+  , ExtraOps
+  , Op (..)
+  , extraOps
+  , preOp
+  , preFilter
+  , postOp
+  , postFilter
+
+  ) where
 
 import Pipes
 import qualified Pipes.Prelude as P
@@ -25,7 +44,7 @@ type Comparator c m r = Producer c m () -> c -> m r
 -- | build a 'Comparator' function
 comparator :: Monad m 
            => Comparison c m s -- ^ The core comparison by which items
-                               -- are rated
+                               -- are scored
            -> ExtraOps c m s -- ^ Filters and other actions applied to
                              -- items and scores before and after the
                              -- core comparison
@@ -58,14 +77,24 @@ mkPipe comp (ExtraOps pre post) c = pre c >-> P.mapM (comp c) >-> post c
 
 type Op c m t = c -> Pipe t t m ()
 
+extraOps :: Monad m => Op c m c -> Op c m s -> ExtraOps c m s
+extraOps = ExtraOps
+
 idOp :: Monad m => Op c m t
 idOp = const cat
 
 preOp :: Monad m => Op c m c -> ExtraOps c m s
 preOp pf = ExtraOps pf idOp
 
+preFilter :: Monad m => (c -> c -> Bool) -> ExtraOps c m s
+preFilter pred = preOp (\c -> P.filter (pred c))
+
 postOp :: Monad m => Op c m s -> ExtraOps c m s
 postOp p = ExtraOps idOp p
 
-dualOp :: Monad m => Op c m c -> Op c m s -> ExtraOps c m s
-dualOp = ExtraOps
+postFilter :: Monad m => (c -> s -> Bool) -> ExtraOps c m s
+postFilter pred = postOp (\c -> P.filter (pred c))
+
+minScore :: (Monad m, Ord s) => s -> ExtraOps c m s
+minScore s = postFilter (const (>= s))
+

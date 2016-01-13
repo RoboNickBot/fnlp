@@ -4,12 +4,12 @@
 
 module Data.FNLP.Reports 
   ( 
-  -- * Reports
+  -- * The 'Report' typeclass
     Report (add)
   , blank
   , combine
 
-  -- * General report types
+  -- * Common 'Report' implementors
   , LRep (..)
   , OLRep (..)
   , TRep (..)
