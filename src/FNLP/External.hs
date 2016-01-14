@@ -1,3 +1,5 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 -- | General interfaces to IO data resources
 
 module FNLP.External
@@ -18,6 +20,12 @@ import Pipes.Share
 type ID = String
 
 type Meta d = (ID, d)
+
+class Provides e d where
+  provide :: e -> IO (Producer (Meta d) IO ())
+
+class Accepts e d where
+  accept :: e -> IO (Consumer (Meta d) IO ())
 
 data External d = External { pour :: Producer (Meta d) IO ()
                            , fill :: Consumer (Meta d) IO ()
