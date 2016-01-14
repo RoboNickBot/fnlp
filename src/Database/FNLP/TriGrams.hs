@@ -6,18 +6,23 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Database.FNLP.TriGrams 
-  ( trigrams
-  , buildTrigramsTable
-   
-  , Language
-  , Dataset
-  , Cardinality
-  , Length
-  , ChunkID
-
-  , listChunks
-  , chunks
+  ( 
   
+  --   trigrams
+  -- , buildTrigramsTable
+
+  -- , Language
+  -- , Dataset
+  -- , Cardinality
+  -- , Length
+  -- , ChunkID
+  -- 
+  -- , listChunks
+  -- , chunks
+
+    open
+  , open'
+
   ) where
 
 import qualified Data.Map as M
@@ -36,6 +41,7 @@ import Pipes
 import qualified Pipes.Prelude as Pipes
 
 import Data.FNLP
+import FNLP.External
 import Database.FNLP.SimpleDB
 
 type Language = String
@@ -227,7 +233,7 @@ readLangFiles = Pipes.mapM (mapM (\f -> deb f >> TIO.readFile f))
 
 chunkRows :: Monad m 
           => Int 
-          -> Pipe (Dataset, Language, T.Text) [TriGramRow] m ()
+          -> Pipe (Dataset, Language, FreqList TriGram) [TriGramRow] m ()
 chunkRows size = pipe 0 size
   where pipe c s = do (d,l,t) <- await
                       yield (mkTGRows'' (c,d,l,t))
@@ -235,13 +241,13 @@ chunkRows size = pipe 0 size
                          then pipe (c + 1) size
                          else pipe c (s - 1)
 
-mkTGRows'' :: (ChunkID, Dataset, Language, T.Text) -> [TriGramRow]
-mkTGRows'' (cid,d,l,s) = 
-  let fs = (freqList . features) (corpus s)
+mkTGRows'' :: (ChunkID, Dataset, Language, FreqList TriGram) -> [TriGramRow]
+mkTGRows'' (cid,d,l,fs) = 
+  let -- fs = (freqList . features) (corpus s)
       row ((tg,fr),c) = TriGramRow d cid l tg fr c
-  in map row (zip fs [0,1..])
+  in map row (zip (freqList fs) [0,1..])
 
-mkTGRows' :: (Dataset, Language, T.Text) -> [TriGramRow]
+mkTGRows' :: (Dataset, Language, FreqList TriGram) -> [TriGramRow]
 mkTGRows' (d,l,s) = mkTGRows'' (0,d,l,s)
 
 mkTGRows (l,s) = mkTGRows' ("data",l,s)
@@ -259,18 +265,18 @@ insertConsumer t = Pipes.mapM_ (insert t)
 --                      disconnect conn
 --                      sequence_ (map print (freqList res))
 
-buildTrigramsTable :: Connection -> Int -> Int -> String -> IO ()
-buildTrigramsTable conn chunkSize p r = 
-  do table <- getEmptyTable conn trigrams
-     files <- crubadanFiles r
-     runEffect (buildDB chunkSize p files table) 
+-- buildTrigramsTable :: Connection -> Int -> Int -> String -> IO ()
+-- buildTrigramsTable conn chunkSize p r = 
+--   do table <- getEmptyTable conn trigrams
+--      files <- crubadanFiles r
+--      runEffect (buildDB chunkSize p files table) 
 
-buildDB :: Int -> Int -> [(Language,FilePath)] -> Table TriGramRow -> Effect IO ()
-buildDB chunkSize p fs t = each fs 
-                           >-> readLangFiles
-                           >-> splitLangFiles p
-                           >-> chunkRows chunkSize
-                           >-> insertConsumer t
+-- buildDB :: Int -> Int -> [(Language,FilePath)] -> Table TriGramRow -> Effect IO ()
+-- buildDB chunkSize p fs t = each fs 
+--                            >-> readLangFiles
+--                            >-> splitLangFiles p
+--                            >-> chunkRows chunkSize
+--                            >-> insertConsumer t
 
 splitLangFiles :: Monad IO
                => Int 
@@ -284,6 +290,41 @@ splitLangFiles p = forever $ do (l,s) <- await
                                 lift (hPutStrLn stderr "yielded 1")
                                 yield ("data", l, T.concat sData)
                                 lift (hPutStrLn stderr "yielded 2")
+
+data Interface = Interface { trigramsI :: Producer (Language, FreqList TriGram) IO ()
+                           , langsI :: Producer Language IO ()
+                           , trigramsO :: Consumer (Language, FreqList TriGram) IO () }
+
+
+data TriGramDB = TriGramDB { mainData :: Producer (ID, FreqList TriGram) IO ()
+                           , testData :: Producer (ID, FreqList TriGram) IO () }
+
+
+addDataset s (i,d) = (s,i,d)
+
+open' :: Int -> FilePath -> IO (External (FreqList TriGram), External (FreqList TriGram))
+open' card db = do conn <- connect db
+                   t <- getTable conn trigrams
+                   chunkIDs <- mkSelector t listChunks >>= \s -> select s ()
+                   let chunkSize = 100
+                       cpipe = chunkRows chunkSize 
+
+                   sData <- mkSelector t (chunks card "data")
+                   let cData = insertConsumer t 
+
+                   sTest <- mkSelector t (chunks card "test")
+                   let cTest = insertConsumer t
+
+                   return (External (spoutCat sData chunkIDs) 
+                                    (Pipes.map (addDataset "data") >-> cpipe >-> cData) 
+                                    (getEmptyTable conn trigrams >> return ())
+                                    (disconnect conn)
+                          ,External (spoutCat sTest chunkIDs)
+                                    (Pipes.map (addDataset "test") >-> cpipe >-> cTest)
+                                    (getEmptyTable conn trigrams >> return ())
+                                    (disconnect conn))
+
+open = open' 50
 
 -- fakeSplitLangFiles _ = Pipes.map (\(l,s) -> ("data",l,s))
 

@@ -39,22 +39,22 @@ library
                      , HDBC-sqlite3 >=2.3 && <2.4
                      , filepath >=1.4 && <1.5
 
-test-suite tests
-  default-language:    Haskell2010
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      tests
-  main-is:             Main.hs
+-- test-suite tests
+--   default-language:    Haskell2010
+--   type:                exitcode-stdio-1.0
+--   hs-source-dirs:      tests
+--   main-is:             Main.hs
   
-  build-depends:       base >=4.8 && <4.9
-                     , fnlp >= 0.0
+--   build-depends:       base >=4.8 && <4.9
+--                      , fnlp >= 0.0
                 
-benchmark benchmarks
-  default-language:    Haskell2010
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      benchmarks
-  main-is:             Main.hs
+-- benchmark benchmarks
+--   default-language:    Haskell2010
+--   type:                exitcode-stdio-1.0
+--   hs-source-dirs:      benchmarks
+--   main-is:             Main.hs
   
-  build-depends:       base >=4.8 && <4.9
-                     , criterion >=1.1 && < 1.2
-                     , fnlp >= 0.0
+--   build-depends:       base >=4.8 && <4.9
+--                      , criterion >=1.1 && < 1.2
+--                      , fnlp >= 0.0
                 

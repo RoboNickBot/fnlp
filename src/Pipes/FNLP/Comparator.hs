@@ -41,6 +41,31 @@ type Comparator c m r = Producer c m () -> c -> m r
 -- be more sensibly interchangeable I think.  Together they could be
 -- called an Experiment or Classifier or something?
 
+-- current thinking:
+--
+-- producer :: Producer c m ()
+-- comparator :: c -> Pipe c s m ()
+-- collector :: Producer s m () -> m r
+--
+-- wholeFun c = collector $ producer >-> comparator c
+--
+-- maybe there can be a convenient (Comparison -> Filter ->
+-- Comparator) function for that common case, but there's no sense in
+-- distancing the end result from a simple Pipe, right?
+--
+-- then again maybe?  I just think it would be useful to take the
+-- whole, combined function as a black box and still extend it with
+-- pre and post filters---those should be much more convenient to
+-- tweak than, say, the central comparison function?
+--
+-- The pre and post filters should still be simple (c -> Pipe)s, but
+-- they should be applyable easily to the whole, which means the whole
+-- should be more of a lens than a function
+--
+-- An additional "filter" could be a transformation function applied
+-- to each item (including the reference item).  This would be a
+-- simple function, not a pipe
+
 -- | build a 'Comparator' function
 comparator :: Monad m 
            => Comparison c m s -- ^ The core comparison by which items

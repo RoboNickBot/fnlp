@@ -28,7 +28,8 @@ import Data.FNLP.Core
 
 ----------------------------------------------------------------------
 
-newtype Corpus = Corpus Text
+newtype Corpus = Corpus Text 
+  deriving (Show, Read, Eq, Ord)
 
 corpus = Corpus
 
