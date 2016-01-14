@@ -11,9 +11,10 @@ for the [*An Crúbadán*](http://crubadan.org) project.
 
 ## Quick start
 
-Importing the `FNLP.Prelude` module brings all of the library's common
-types and functions into scope.  (It's admittedly a little sparse at
-the moment!)
+The `FNLP` module provides all the infrastructure-ish classes and
+utilities, and the `FNLP.Common` modules gives you commonly useful
+types and operations with which to build an experiment or application
+(It's admittedly a little sparse at the moment).
 
 More documentation to follow!
 
