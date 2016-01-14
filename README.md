@@ -11,9 +11,11 @@ for the [*An Crúbadán*](http://crubadan.org) project.
 
 ## Quick start
 
-There aren't any quickly accessible modules or tools yet.  More
-documentation needs writing.  You can look at the `Database.FNLP`
-module for some canned writing-system classification operations.
+Importing the `FNLP.Prelude` module brings all of the library's common
+types and functions into scope.  (It's admittedly a little sparse at
+the moment!)
+
+More documentation to follow!
 
 ## Features
 
