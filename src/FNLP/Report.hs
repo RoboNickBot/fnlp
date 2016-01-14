@@ -2,7 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
 
-module Data.FNLP.Report
+module FNLP.Report
   ( 
   
   -- * The 'Report' typeclass

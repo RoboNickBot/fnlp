@@ -41,6 +41,8 @@ import Pipes
 import qualified Pipes.Prelude as Pipes
 
 import Data.FNLP
+import Data.FNLP.Common
+import Data.FNLP.Freq
 import FNLP.External
 import Database.SimpleDB
 

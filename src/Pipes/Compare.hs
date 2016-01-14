@@ -2,7 +2,7 @@
 
 {-| Functions for comparing things together -}
 
-module Pipes.Comparator 
+module Pipes.Compare
   (
   
     Comparator (..)

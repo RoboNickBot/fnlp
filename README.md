@@ -1,4 +1,4 @@
-# FNLP v0.0.0.0 :: purely functional natural language processing
+# FNLP v0.0.0.2 :: purely functional natural language processing
 
 `fnlp` is a library for building NLP applications and experiments.
 It's sort of modeled on [NLTK](http://www.nltk.org/).  Right now,

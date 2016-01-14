@@ -2,13 +2,17 @@ module FNLP
   (
   
   -- * Re-exports
-    module Data.FNLP   
+    module Data.FNLP
+  , module FNLP.Report
   , module FNLP.External
-  , module Pipes.Comparator
+  , module Pipes.Compare
+  , module Pipes.Share
 
 
   ) where
 
 import Data.FNLP
+import FNLP.Report
 import FNLP.External
-import Pipes.Comparator
+import Pipes.Compare
+import Pipes.Share

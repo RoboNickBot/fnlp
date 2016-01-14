@@ -15,7 +15,7 @@ module Data.FNLP.Freq
 import qualified Data.Map as M
 import qualified Data.List as L
 
-import Data.FNLP.Core
+import Data.FNLP
 import Data.FNLP.Common
 
 newtype Frequency = Frequency { frequency :: Int } 
@@ -41,11 +41,11 @@ mkFreqList fs =
                   M.empty fs)
 
 instance PState TriGrams (FreqList TriGram) PClosed
-instance LinkedTo TriGrams (FreqList TriGram) where
+instance AutoLink TriGrams (FreqList TriGram) where
   linkstep = mkFreqList . triGramList
 
 instance PState UBlocks (FreqList UBlock) PClosed
-instance LinkedTo UBlocks (FreqList UBlock) where
+instance AutoLink UBlocks (FreqList UBlock) where
   linkstep = mkFreqList . uBlockList
 
 showln (sg,f) = sg ++ " " ++ show f

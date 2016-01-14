@@ -14,7 +14,6 @@ module Data.FNLP.Common
 
  ) where
 
-import Data.Convertible
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Set as S
@@ -23,8 +22,7 @@ import Data.CharSet.Unicode.Block (Block(..), blocks)
 import Data.CharSet (member)
 import Data.Char (isAlpha, toLower)
 
-import Data.FNLP.Core
-
+import Data.FNLP
 
 ----------------------------------------------------------------------
 
@@ -38,6 +36,7 @@ instance Convertible Corpus Text where
 
 instance Convertible Text Corpus where
   safeConvert = Right . corpus
+
 
 ----------------------------------------------------------------------
 -- Unicode Blocks
@@ -57,7 +56,7 @@ ublock = UBlock
 newtype UBlocks = UBlocks { uBlockList :: [UBlock] }
 
 instance PState Corpus UBlocks PClosed
-instance LinkedTo Corpus UBlocks where
+instance AutoLink Corpus UBlocks where
   linkstep = UBlocks 
              . fmap UBlock 
              . foldr (\s -> (++) (blocksUsed s)) [] 
@@ -84,7 +83,7 @@ instance Convertible TriGram Text where
 newtype TriGrams = TriGrams { triGramList :: [TriGram] }
 
 instance PState Corpus TriGrams PClosed
-instance LinkedTo Corpus TriGrams where
+instance AutoLink Corpus TriGrams where
   linkstep = TriGrams . concat . map trigrams . prepWords . convert
 
 newtype PrepWord = PrepWord Text

@@ -11,6 +11,7 @@ import Pipes
 import qualified Pipes.Prelude as P
 
 import Data.FNLP
+import Data.FNLP.Common
 import FNLP.External
 
 getInterface :: FilePath -> IO (ReadOnly Corpus)
