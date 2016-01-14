@@ -2,7 +2,7 @@
 
 {-| Functions for comparing things together -}
 
-module Pipes.FNLP.Comparator 
+module Pipes.Comparator 
   (
   
     Comparator (..)

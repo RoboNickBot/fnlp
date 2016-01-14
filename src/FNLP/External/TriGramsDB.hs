@@ -5,7 +5,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module Database.FNLP.TriGrams 
+module FNLP.External.TriGramsDB
   ( 
   
   --   trigrams
@@ -42,7 +42,7 @@ import qualified Pipes.Prelude as Pipes
 
 import Data.FNLP
 import FNLP.External
-import Database.FNLP.SimpleDB
+import Database.SimpleDB
 
 type Language = String
 

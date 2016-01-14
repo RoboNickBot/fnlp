@@ -13,17 +13,21 @@ library
   hs-source-dirs:      src
   default-language:    Haskell2010
 
-  exposed-modules:     FNLP
-                     , FNLP.Prelude
-                     , Data.FNLP
-                     , Pipes.FNLP.Comparator
-
-  other-modules:       Database.FNLP.SimpleDB
-                     , Database.FNLP.TriGrams
-                     
+  exposed-modules:     Data.FNLP
                      , Data.FNLP.Common
                      , Data.FNLP.Core
                      , Data.FNLP.Freq
+
+                     , FNLP
+                     , FNLP.Prelude
+
+                     , FNLP.External
+                     , FNLP.External.OldFS
+                     , FNLP.External.TriGramsDB
+
+  other-modules:       Database.SimpleDB
+                     , Pipes.Comparator
+                     , Pipes.Share
 
   build-depends:       base >=4.8 && <4.9
                      , containers >=0.5 && <0.6

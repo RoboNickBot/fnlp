@@ -1,10 +1,11 @@
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+-- | General interfaces to IO data resources
 
 module FNLP.External
   ( 
   
-    ID (..)
+    module Pipes.Share
+
+  , ID (..)
   , Meta (..)
   , External (..)
   , ReadOnly (..)
@@ -12,6 +13,7 @@ module FNLP.External
   ) where
 
 import Pipes
+import Pipes.Share
 
 type ID = String
 

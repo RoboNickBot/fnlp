@@ -3,9 +3,9 @@ module FNLP
   
   -- * Re-exports
     module Data.FNLP
-  , module Pipes.FNLP.Comparator
+  , module Pipes.Comparator
 
   ) where
 
 import Data.FNLP
-import Pipes.FNLP.Comparator
+import Pipes.Comparator

@@ -2,7 +2,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE Rank2Types #-}
 
-module Database.FNLP.SimpleDB 
+module Database.SimpleDB 
   ( connect
   , disconnect
   , Connection
