@@ -3,7 +3,7 @@
 }:
 mkDerivation {
   pname = "fnlp";
-  version = "0.0.0.0";
+  version = "0.0.0.1";
   src = ./.;
   libraryHaskellDepends = [
     base charset containers convertible directory filepath HDBC
