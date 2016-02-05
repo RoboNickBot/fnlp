@@ -19,16 +19,16 @@ showOldfs = do putStrLn ">>> Doing Oldfs test"
                            >-> P.stdoutLn)
 
 testAccepter :: IO (Consumer (Classified (FreqList TriGram)) IO ())
-testAccepter = accept (openAccepter "testdb.sqlite3" "training")
+testAccepter = accept (trigramsCosineDB "testdb.sqlite3" "training")
 
 performExchange :: IO ()
 performExchange = do putStrLn ">>> Doing Exchange Test"
                      prv <- provide (getProvider "test-data/oldfs")
-                     acc <- testAccepter
+                     acc <- accept (trigramsCosineDB "testdb.sqlite3" "training")
                      runEffect ((prv 
                                  >-> P.map (fmap (features :: Corpus -> FreqList TriGram)) 
-                                 >-> acc))
-                     check <- provide (openProvider "testdb.sqlite3" "training")
+                                 >-> (acc :: Consumer (Classified (FreqList TriGram)) IO ())))
+                     check <- provide (trigramsCosineDB "testdb.sqlite3" "training")
                      runEffect (((check :: Producer (Classified (FreqList TriGram)) IO ())
                                  >-> P.map (fmap (\f -> head $ freqList f)) 
                                  >-> P.map show >-> P.stdoutLn))

@@ -2,8 +2,9 @@
 {-# LANGUAGE FlexibleContexts #-}
 
 module FNLP.External.Sqlite.TrigramsCosineDB
-  ( openProvider
-  , openAccepter
+  ( 
+  
+    trigramsCosineDB
 
   ) where
 
@@ -66,8 +67,8 @@ instance Convertible SqlValue Class where
 -- Table Schema
 ----------------------------------------------------------------------
 
-trigrams :: String -> TableSchema TriGramRow
-trigrams name = TableSchema name rows mkRow
+trigramsSchema :: String -> TableSchema TriGramRow
+trigramsSchema name = TableSchema name rows mkRow
   where rows = ["chunkid     INT          NOT NULL"
                ,"class       TEXT         NOT NULL"
                ,"trigram     TEXT         NOT NULL"
@@ -133,21 +134,24 @@ insertConsumer :: Table r -> Consumer [r] IO ()
 insertConsumer t = P.mapM_ (insert t)
 
 
+trigramsCosineDB :: FilePath -> String -> Depot (Classified (FreqList TriGram))
+trigramsCosineDB path chan = Depot (openAccepter path chan) (openProvider path chan)
+
+openAccepter :: FilePath -> String -> Accepter (Classified (FreqList TriGram))
+openAccepter path chan = 
+  Accepter (do conn <- connect path
+               t <- getTable conn (trigramsSchema chan)
+               let chunkSize = 100
+                   cpipe = chunkRows chunkSize
+                   cData = insertConsumer t
+               return (cpipe >-> cData))
+
 openProvider :: FilePath -> String -> Provider (Classified (FreqList TriGram))
 openProvider path chan = 
   Provider (do conn <- connect path
-               t <- getTable conn (trigrams chan)
+               t <- getTable conn (trigramsSchema chan)
                chunkIDs <- mkSelector t listChunks >>= \s -> select s ()
                let card = defaultCardinality
                    chunkSize = defaultChunkSize 
                sData <- mkSelector t (chunks card)
                return (spoutCat sData chunkIDs))
-
-openAccepter :: FilePath -> String -> Accepter (Classified (FreqList TriGram))
-openAccepter path chan = 
-  Accepter (do conn <- connect path
-               t <- getTable conn (trigrams chan)
-               let chunkSize = 100
-                   cpipe = chunkRows chunkSize
-                   cData = insertConsumer t
-               return (cpipe >-> cData))
