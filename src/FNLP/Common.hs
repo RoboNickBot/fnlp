@@ -3,9 +3,9 @@ module FNLP.Common
   
     module Data.FNLP.Common
   , module Data.FNLP.Freq
-  , module FNLP.External.OldFS
-  , module FNLP.External.TriGramsDB
-  
+  , module FNLP.External.FileSystem.SampSentsDB
+  , module FNLP.External.Sqlite.TrigramsCosineDB
+
   , sampleCorpus
   , toyDB
   , split
@@ -22,23 +22,23 @@ import FNLP
 
 import Data.FNLP.Common
 import Data.FNLP.Freq
-import FNLP.External.OldFS
-import FNLP.External.TriGramsDB
+import FNLP.External.FileSystem.SampSentsDB
+import FNLP.External.Sqlite.TrigramsCosineDB
 
-sampleCorpus :: [Meta Corpus]
-sampleCorpus = [("eng", (corpus . pack) "Hello World!")]
+sampleCorpus :: [Classified Corpus]
+sampleCorpus = [(convert "eng", (corpus . pack) "Hello World!")]
 
-toyDB :: ReadOnly Corpus
-toyDB = each sampleCorpus
+toyDB :: Provider (Classified Corpus)
+toyDB = Provider (return (each sampleCorpus))
 
-split :: Int -> Meta Corpus -> (Meta Corpus, Meta Corpus)
+split :: Int -> Classified Corpus -> (Classified Corpus, Classified Corpus)
 split = undefined
 
 storeProfiles :: Monad m 
               => Int  
-              -> Producer (Meta Corpus) m ()
-              -> Consumer (Meta (FreqList TriGram)) m ()
-              -> Consumer (Meta (FreqList TriGram)) m ()
+              -> Producer (Classified Corpus) m ()
+              -> Consumer (Classified (FreqList TriGram)) m ()
+              -> Consumer (Classified (FreqList TriGram)) m ()
               -> Effect m ()
 storeProfiles i pro cMain cTest = 
   let trigs = (>->) (P.map (fmap features))

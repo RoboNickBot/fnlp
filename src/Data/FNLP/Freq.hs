@@ -21,6 +21,12 @@ import Data.FNLP.Common
 newtype Frequency = Frequency { frequency :: Int } 
   deriving (Show, Read, Eq, Ord)
 
+instance Convertible Int Frequency where
+  safeConvert = Right . Frequency
+
+instance Convertible Frequency Int where
+  safeConvert = Right . frequency
+
 freqBump (Frequency f) = Frequency (f + 1)
 
 freqInit = Frequency 1

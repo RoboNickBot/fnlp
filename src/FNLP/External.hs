@@ -1,4 +1,5 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 -- | General interfaces to IO data resources
 
@@ -6,30 +7,36 @@ module FNLP.External
   ( 
   
     module Pipes.Share
+    
+  , Provides (provide)
+  , Accepts (accept)
 
-  , ID (..)
-  , Meta (..)
-  , External (..)
-  , ReadOnly (..)
+  , Provider (..)
+  , Accepter (..)
 
   ) where
+
+----------------------------------------------------------------------
+
+import FNLP.Types
 
 import Pipes
 import Pipes.Share
 
-type ID = String
-
-type Meta d = (ID, d)
+----------------------------------------------------------------------
 
 class Provides e d where
-  provide :: e -> IO (Producer (Meta d) IO ())
+  provide :: e -> IO (Producer d IO ())
 
 class Accepts e d where
-  accept :: e -> IO (Consumer (Meta d) IO ())
+  accept :: e -> IO (Consumer d IO ())
 
-data External d = External { pour :: Producer (Meta d) IO ()
-                           , fill :: Consumer (Meta d) IO ()
-                           , dump :: IO ()
-                           , toss :: IO () }
+data Provider d = Provider (IO (Producer d IO ()))
 
-type ReadOnly d = Producer (Meta d) IO ()
+instance Provides (Provider d) d where
+  provide (Provider p) = p
+
+data Accepter d = Accepter (IO (Consumer d IO ()))
+
+instance Accepts (Accepter d) d where
+  accept (Accepter a) = a
