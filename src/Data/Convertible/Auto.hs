@@ -8,6 +8,8 @@ module Data.Convertible.Auto
   , PClosed
   , AutoLink
   , linkstep
+  
+  , Featuring
   , features
 
   ) where
