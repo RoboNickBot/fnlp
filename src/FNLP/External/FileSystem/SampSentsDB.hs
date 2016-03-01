@@ -1,6 +1,12 @@
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 module FNLP.External.FileSystem.SampSentsDB 
-  ( getProvider
+  ( 
   
+    sampsents
+
   ) where
 
 import qualified Data.Text as T
@@ -16,37 +22,25 @@ import qualified Pipes.Prelude as P
 
 import Data.FNLP
 import Data.FNLP.Common
-import Data.FNLP.Freq
-import FNLP
-import FNLP.External
+import FNLP.Classes
 
-getProvider :: FilePath -> Provider (Classified Corpus)
-getProvider = outpipe
+----------------------------------------------------------------------
+
+sampsents :: FilePath -> IO (Producer (Ann Corpus) IO ())
+sampsents path = prod <$> fileList path
+  where prod f = each f >-> readLangFiles >-> P.map (fmap corpus)
+
+fileList :: FilePath -> IO [Ann FilePath]
+fileList path = 
+  fmap (\d -> (Tag (convert d), path </> d </> "SAMPSENTS")) 
+     <$> getRealDirectoryContents path
+
+readLangFiles :: Pipe (Ann FilePath) (Ann T.Text) IO ()
+readLangFiles = P.mapM (mapM (\f -> deb f >> TIO.readFile f))
+  where deb p = hPutStrLn stderr ("reading file" ++ p ++ " ...")
 
 getRealDirectoryContents = 
   fmap (filter (\a -> (a /= ".") && (a /= ".."))) 
   <$> getDirectoryContents
 
-oldFSFiles :: FilePath -> IO [(Class,FilePath)]
-oldFSFiles r = fmap (\d -> (convert d, r </> d </> "SAMPSENTS")) 
-                  <$> getRealDirectoryContents r
 
-oldFSNames = getRealDirectoryContents
-
-readFilesP :: [String] -> Producer T.Text IO ()
-readFilesP (p:ps) = do lift (deb p)
-                       text <- lift (TIO.readFile p)
-                       yield text
-                       readFilesP ps
-  where deb p = hPutStrLn stderr ("reading file" ++ p ++ " ...") 
-                >> hFlush stderr 
-readFilesP _ = return ()
-
-readLangFiles :: Pipe (Class, FilePath) (Class, T.Text) IO ()
-readLangFiles = P.mapM (mapM (\f -> deb f >> TIO.readFile f))
-  where deb p = hPutStrLn stderr ("reading file" ++ p ++ " ...") 
-
-outpipe :: FilePath -> Provider (Classified Corpus)
-outpipe p = 
-  Provider (do files <- oldFSFiles p
-               return (each files >-> readLangFiles >-> P.map (fmap corpus)))
