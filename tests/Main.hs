@@ -2,33 +2,18 @@ module Main (main) where
 
 import FNLP
 import FNLP.Common
+import FNLP.Classes
 
 import Pipes
 import qualified Pipes.Prelude as P
+import System.Exit
 
 main :: IO ()
-main = showOldfs >> performExchange >> return ()
+main = do samps <- sampsents "test-data/oldfs"
+          tdb <- openDB "test-db.sqlite3" >>= clear >>= teach samps
+          runEffect (crossCheck tdb >-> P.map show >-> P.stdoutLn)
+          die "whatever"
 
-showOldfs :: IO ()
-showOldfs = do putStrLn ">>> Doing Oldfs test"
-               prv <- provide (getProvider "test-data/oldfs")
-               runEffect ((prv :: Producer (Classified Corpus) IO ()) 
-                           >-> P.map (fmap (features :: Corpus -> FreqList TriGram))
-                           >-> P.map (fmap (\f -> head $ freqList f))
-                           >-> P.map show 
-                           >-> P.stdoutLn)
+teach :: Producer (Ann Corpus) IO () -> TrigramDB -> IO TrigramDB
+teach p tdb = runEffect (p >-> learner tdb) >> refreshDB tdb
 
-testAccepter :: IO (Consumer (Classified (FreqList TriGram)) IO ())
-testAccepter = accept (trigramsCosineDB "testdb.sqlite3" "training")
-
-performExchange :: IO ()
-performExchange = do putStrLn ">>> Doing Exchange Test"
-                     prv <- provide (getProvider "test-data/oldfs")
-                     acc <- accept (trigramsCosineDB "testdb.sqlite3" "training")
-                     runEffect ((prv 
-                                 >-> P.map (fmap (features :: Corpus -> FreqList TriGram)) 
-                                 >-> (acc :: Consumer (Classified (FreqList TriGram)) IO ())))
-                     check <- provide (trigramsCosineDB "testdb.sqlite3" "training")
-                     runEffect (((check :: Producer (Classified (FreqList TriGram)) IO ())
-                                 >-> P.map (fmap (\f -> head $ freqList f)) 
-                                 >-> P.map show >-> P.stdoutLn))

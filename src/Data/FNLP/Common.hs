@@ -3,7 +3,8 @@
 module Data.FNLP.Common
  ( Corpus
  , corpus 
- 
+ , divCorpus
+
  , UBlock
  , ublock
  , UBlocks (uBlockList)
@@ -36,6 +37,32 @@ instance Convertible Corpus Text where
 
 instance Convertible Text Corpus where
   safeConvert = Right . corpus
+
+-- | Split the lines of a corpus into training and testing data
+divCorpus :: Int -- ^ Percent to withhold for testing (0 to 100)
+          -> Corpus 
+          -> (Corpus, Corpus) -- ^ (Training, Testing)
+divCorpus p (Corpus t) = 
+  let (testing, training) = 
+        takeFrac ((ceiling (fromIntegral p / 10)),10) (T.lines t)
+  in (Corpus (T.concat training), Corpus (T.concat testing))
+
+-- | Split a list evenly by a fraction
+takeFrac :: (Int, Int) -- ^ (numerator, denominator)
+         -> [a] -- ^ list to split up
+         -> ([a],[a]) -- ^ (fraction specified, leftovers)
+takeFrac (num,den) as = 
+  foldr (\a (b,c) -> let (c',b') = splitAt (den - num) a
+                     in (b' ++ b, c' ++ c)) 
+        ([],[]) 
+        (segment den as)
+
+-- | Cut a list into segments of specified size
+segment :: Int -> [a] -> [[a]]
+segment i [] = []
+segment 0 as = [as]
+segment i as = let (l,bs) = splitAt i as
+               in l : segment (max 0 i) bs
 
 
 ----------------------------------------------------------------------

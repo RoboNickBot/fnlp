@@ -4,8 +4,9 @@
 
 module FNLP.External.Sqlite.TrigramsCosineDB
   ( 
-  
-    openDB
+
+    TrigramDB  
+  , openDB
   , refreshDB
   , closeDB
   , clear
@@ -20,6 +21,7 @@ module FNLP.External.Sqlite.TrigramsCosineDB
 import Data.Text (Text, pack, unpack)
 import qualified Data.Map as M
 import qualified Data.List as L
+import Data.Maybe (listToMaybe)
 import Pipes
 import qualified Pipes.Prelude as P
 
@@ -37,7 +39,7 @@ defaultChunkSize = 100
 
 defaultCardinality = 50
 
-defaultTesting = 0.9
+defaultTesting = 30
 
 ----------------------------------------------------------------------
 
@@ -46,53 +48,65 @@ data TrigramDB = TrigramDB { _conn :: Connection
                            , _testing' :: Chan }
 
 data Chan = Chan { _p :: Producer (Ann (FreqList TriGram)) IO ()
-                 , _c :: Consumer (Ann (FreqList TriGram)) IO () } 
+                 , _c :: Consumer (Ann (FreqList TriGram)) IO ()
+                 , _dropAction :: IO () } 
 
 openDB :: FilePath -> IO TrigramDB
-openDB path = connect path >>= popDB
+openDB path = connect path >>= populateDB
 
-popDB :: Connection -> IO TrigramDB
-popDB conn = TrigramDB conn 
+populateDB :: Connection -> IO TrigramDB
+populateDB conn = TrigramDB conn 
              <$> mkChan conn "training" 
              <*> mkChan conn "testing"
 
 mkChan :: Connection -> String -> IO Chan
-mkChan conn chan = Chan 
-                   <$> (getChan chan conn >>= openProducer) 
-                   <*> (openConsumer <$> getChan chan conn)
+mkChan conn chan = let tbl = getChan chan conn
+                   in Chan 
+                      <$> (openProducer =<< tbl) 
+                      <*> (openConsumer <$> tbl)
+                      <*> (dropTable    <$> tbl)
 
 refreshDB :: TrigramDB -> IO TrigramDB
-refreshDB = popDB . _conn
+refreshDB = populateDB . _conn
 
 closeDB :: TrigramDB -> IO ()
 closeDB = disconnect . _conn
 
 clear :: TrigramDB -> IO TrigramDB
-clear = undefined
+clear db = _dropAction (_training' db) 
+           >> _dropAction (_testing' db) 
+           >> refreshDB db
 
 learner :: TrigramDB
         -> Consumer (Ann Corpus) IO ()
-learner (TrigramDB _ (Chan _ trC) (Chan _ tsC)) = 
+learner (TrigramDB _ (Chan _ trC _) (Chan _ tsC _)) = 
   splitStore defaultTesting (p trC) (p tsC)
   where p c = P.map (fmap features) >-> c
 
 splitStore :: Monad m 
-           => Double 
+           => Int
            -> Consumer (Ann Corpus) m ()
            -> Consumer (Ann Corpus) m ()
            -> Consumer (Ann Corpus) m ()
-splitStore per trC tsC = P.mapM_ (runEffect . mash (divCorpus per) trC tsC)
+splitStore per trC tsC = P.mapM_ (runEffect . mash (divCorpus' per) trC tsC)
 
-divCorpus :: Double -> Ann Corpus -> (Ann Corpus, Ann Corpus)
-divCorpus = undefined
+divCorpus' per (tag, c) = let (training, testing) = divCorpus per c
+                          in ((tag, training), (tag, testing))
 
 classifier :: Featuring a (FreqList TriGram) 
            => TrigramDB
-           -> Pipe a (Ann Double) IO ()
-classifier = undefined
+           -> Pipe a [Ann Double] IO ()
+classifier db = P.mapM (classifier' db . features)
 
-crossCheck :: TrigramDB -> Producer (Ann Tag) IO ()
-crossCheck = undefined
+classifier' :: TrigramDB -> FreqList TriGram -> IO [Ann Double]
+classifier' db a = L.sortBy sf <$> P.toListM (p a)
+  where p a = (_p (_training' db)) >-> P.map (fmap $ cosine a)
+        sf (t1,s1) (t2,s2) = compare s2 s1
+
+crossCheck :: TrigramDB -> Producer (Ann (Maybe Tag)) IO ()
+crossCheck db = (_p (_testing' db)) 
+                >-> P.mapM (mapM (classifier' db)) 
+                >-> P.map (fmap (fmap fst . listToMaybe))
 
 getChan :: String -> Connection -> IO (Table TriGramRow)
 getChan chan conn = getTable conn (trigramsSchema chan)
@@ -218,53 +232,3 @@ mkTGRows (ch,cl,fs) = let row ((tg,fr),c) = TriGramRow ch cl tg fr c
 insertConsumer :: Table r -> Consumer [r] IO ()
 insertConsumer t = P.mapM_ (insert t)
 
-
--- trigramsCosineDB :: FilePath -> String -> Depot (Ann (FreqList TriGram))
--- trigramsCosineDB path chan = Depot (openAccepter path chan) (openProvider path chan)
-
-
--- openAccepter :: FilePath -> String -> Accepter (Ann (FreqList TriGram))
--- openAccepter path chan = 
---   Accepter (do conn <- connect path
---                t <- getTable conn (trigramsSchema chan)
---                let chunkSize = 100
---                    cpipe = chunkRows chunkSize
---                    cData = insertConsumer t
---                return (cpipe >-> cData))
-
--- openProvider :: FilePath -> String -> Provider (Ann (FreqList TriGram))
--- openProvider path chan = 
---   Provider (do conn <- connect path
---                t <- getTable conn (trigramsSchema chan)
---                chunkIDs <- mkSelector t listChunks >>= \s -> select s ()
---                let card = defaultCardinality
---                    chunkSize = defaultChunkSize 
---                sData <- mkSelector t (chunks card)
---                return (spoutCat sData chunkIDs))
-
--- data TrigramsChan = TrigramsChan { _out :: Producer (Ann (FreqList TriGram)) IO ()
---                                  , _in  :: Consumer (Ann (FreqList TriGram)) IO () }
-
--- trigramsChan :: FilePath -> String -> IO TrigramsChan
--- trigramsChan path chan = 
---   do conn <- connect path
---      t <- getTable conn (trigramsSchema chan)
---      chunkIDs <- mkSelector t listChunks >>= \s -> select s ()
---      let chunkSize = defaultChunkSize
---          card = defaultCardinality
---          cpipe = chunkRows chunkSize
---          cData = insertConsumer t
---      sData <- mkSelector t (chunks card)
---      return (TrigramsChan (spoutCat sData chunkIDs) (cpipe >-> cData))
-
--- data TrigramsDB = TrigramsDB { _training :: TrigramsChan
---                              , _testing  :: TrigramsChan }
-
--- trigramsDB :: FilePath -> IO TrigramsDB
--- trigramsDB path = TrigramsDB 
---                   <$> trigramsChan path "training" 
---                   <*> trigramsChan path "testing"
-
--- instance Learner TrigramsDB (FreqList TriGram) IO where
---   teach' = undefined
---   clear = undefined

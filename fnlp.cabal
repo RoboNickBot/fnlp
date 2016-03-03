@@ -21,6 +21,7 @@ library
                      , FNLP.Common
 
                      , FNLP.Types
+                     , FNLP.Classes
                      , FNLP.Report
 
                      , FNLP.External
