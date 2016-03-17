@@ -1,6 +1,7 @@
 *~
 dist/
 testdata/
+test-data/
 .cabal-sandbox/
 cabal.sandbox.config
 

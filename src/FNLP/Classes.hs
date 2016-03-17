@@ -3,20 +3,23 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
 
-module FNLP.Classes where
+module FNLP.Classes
+  ( Ann
+  , Tag (..)
+  , External (..)
+  , wipe
+  , Learner (..)
+  , teach
+
+  ) where
 
 ----------------------------------------------------------------------
 
 import Pipes
 import Data.Text (Text)
 
-
-
 import Data.Convertible
 import Data.Convertible.Auto
-
-import Data.FNLP.Common
-import Data.FNLP.Freq
 
 ----------------------------------------------------------------------
 
@@ -32,29 +35,15 @@ instance Convertible Tag Text where
 instance Convertible Text Tag where
   safeConvert = Right . Tag
 
-class (Monad m) => Resource r q a m where
-  withdraw :: r -> q -> m (Producer a m ())
-  stream :: r -> m (Producer a m ())
+class Monad m => External e m where
+  wipeAction :: e -> m ()
+  refresh :: e -> m e
 
-class (Monad m) => Depot' r a m where
-  deposit :: r -> Consumer a m ()
+wipe :: External l m => l -> m l
+wipe db = wipeAction db >> refresh db
 
-class Report s where
-  best :: s -> Maybe Tag
+class External l m => Learner l a m where
+  learner :: l -> Consumer a m ()
 
-class (Monad m, Report s) => Classifier c a m s where
-  classify' :: (Monad m) => c -> a -> m s
-
-class (Monad m) => Learner c a m where
-  teach' :: (Monad m) => c -> Consumer (Ann a) m ()
-  -- clear :: c -> m ()
-
-data Report1 = Report1
-
-instance Report Report1 where
-  best = undefined
-
-instance (Resource r () (FreqList a) m) => Classifier r (FreqList a) m Report1 where
-  classify' = undefined
-
-type Classifier' a r m = Pipe a r m ()
+teach :: (Monad m, Learner d a m) => Producer a m () -> d -> m d
+teach p tdb = runEffect (p >-> learner tdb) >> refresh tdb

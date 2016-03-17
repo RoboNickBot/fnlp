@@ -6,11 +6,7 @@ module FNLP.External.Sqlite.TrigramsCosineDB
   ( 
 
     TrigramDB  
-  , openDB
-  , refreshDB
-  , closeDB
-  , clear
-  , learner
+  , trigramDB
   , classifier
   , crossCheck
 
@@ -51,8 +47,8 @@ data Chan = Chan { _p :: Producer (Ann (FreqList TriGram)) IO ()
                  , _c :: Consumer (Ann (FreqList TriGram)) IO ()
                  , _dropAction :: IO () } 
 
-openDB :: FilePath -> IO TrigramDB
-openDB path = connect path >>= populateDB
+trigramDB :: FilePath -> IO TrigramDB
+trigramDB path = connect path >>= populateDB
 
 populateDB :: Connection -> IO TrigramDB
 populateDB conn = TrigramDB conn 
@@ -66,22 +62,22 @@ mkChan conn chan = let tbl = getChan chan conn
                       <*> (openConsumer <$> tbl)
                       <*> (dropTable    <$> tbl)
 
-refreshDB :: TrigramDB -> IO TrigramDB
-refreshDB = populateDB . _conn
 
 closeDB :: TrigramDB -> IO ()
 closeDB = disconnect . _conn
 
-clear :: TrigramDB -> IO TrigramDB
-clear db = _dropAction (_training' db) 
-           >> _dropAction (_testing' db) 
-           >> refreshDB db
+instance External TrigramDB IO where
+  wipeAction db = _dropAction (_training' db) 
+                  >> _dropAction (_testing' db) 
 
-learner :: TrigramDB
-        -> Consumer (Ann Corpus) IO ()
-learner (TrigramDB _ (Chan _ trC _) (Chan _ tsC _)) = 
-  splitStore defaultTesting (p trC) (p tsC)
-  where p c = P.map (fmap features) >-> c
+  
+  refresh = populateDB . _conn
+
+instance Learner TrigramDB (Ann Corpus) IO where
+  learner (TrigramDB _ (Chan _ trC _) (Chan _ tsC _)) = 
+    splitStore defaultTesting (p trC) (p tsC)
+    where p c = P.map (fmap features) >-> c
+
 
 splitStore :: Monad m 
            => Int
